@@ -1,5 +1,5 @@
 // =============================================================================
-// SYNTEGRA CLINICAL OS - PRISMA SCHEMA
+// CLINICAL OS - PRISMA SCHEMA
 // Base de datos clínica regulada con Zero Trust, RBAC+ABAC, Soft Delete
 // =============================================================================
 
@@ -78,6 +78,32 @@ enum AuditResource {
   CLINICAL_SESSION
   SHADOW_NOTE
   CLINICAL_COLLABORATION
+  SESSION_PAYMENT
+  PSYCH_TEST
+  PATIENT_ATTACHMENT
+}
+
+enum PaymentStatus {
+  PENDING   // Adeudo
+  PAID      // Pagado
+  PARTIAL   // Pago parcial
+  WAIVED    // Condonado
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+  OTHER
+}
+
+enum AttachmentCategory {
+  GENOGRAM
+  PSYCH_TEST_SCAN
+  EXTERNAL_REPORT
+  CONSENT_FORM
+  DRAWING
+  OTHER
 }
 
 // =============================================================================
@@ -186,6 +212,13 @@ model Patient {
   // Estado
   isActive Boolean @default(true)
 
+  // Alerta de Riesgo (Ideación suicida, autolesión, etc.)
+  isHighRisk     Boolean   @default(false)
+  riskLevel      String?   @db.VarChar(20) // "LOW", "MODERATE", "HIGH", "CRITICAL"
+  riskNotes      String?   @db.VarChar(500)
+  riskAssessedAt DateTime? @db.Timestamptz
+  riskAssessedBy String?   @db.Uuid
+
   // Trazabilidad legal (NOM-004-SSA3)
   createdBy String? @db.Uuid // Usuario que registró al paciente
 
@@ -203,6 +236,9 @@ model Patient {
   versions        PatientVersion[] // Historial de cambios demográficos
   creator         User?                   @relation("PatientCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   clinicalHistory ClinicalHistory?
+  payments        SessionPayment[]
+  testResults     PsychTestResult[]
+  attachments     PatientAttachment[]
 
   @@index([externalId])
   @@index([lastName, firstName])
@@ -394,6 +430,9 @@ model ClinicalSession {
   // Anulación legal (requiere justificación)
   voidedAt   DateTime? @db.Timestamptz
   voidReason String?   @db.VarChar(500)
+
+  // Protocolo de seguridad (obligatorio si paciente isHighRisk al firmar)
+  safetyProtocol String? @db.VarChar(1000)
   voidedBy   String?   @db.Uuid
 
   // Soft Delete
@@ -407,9 +446,11 @@ model ClinicalSession {
   appointment Appointment              @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
   patient     Patient                  @relation(fields: [patientId], references: [id], onDelete: Restrict)
   therapist   User                     @relation("TherapistSessions", fields: [therapistId], references: [id], onDelete: Restrict)
-  shadowNote  ShadowNote?
-  versions    ClinicalSessionVersion[]
-  addendums   SessionAddendum[]
+  shadowNote   ShadowNote?
+  versions     ClinicalSessionVersion[]
+  addendums    SessionAddendum[]
+  payment      SessionPayment?
+  testResults  PsychTestResult[]
 
   @@index([patientId, deletedAt])
   @@index([therapistId, deletedAt])
@@ -715,4 +756,96 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @db.Timestamptz
 
   @@map("system_config")
+}
+
+// =============================================================================
+// MODELO: SessionPayment (Pagos por Sesión)
+// Ledger simple: cada sesión tiene un costo y un estado de pago.
+// =============================================================================
+
+model SessionPayment {
+  id          String        @id @default(uuid()) @db.Uuid
+  sessionId   String        @unique @db.Uuid
+  patientId   String        @db.Uuid
+  therapistId String        @db.Uuid
+
+  amount      Decimal       @db.Decimal(10, 2)
+  amountPaid  Decimal       @default(0) @db.Decimal(10, 2)
+  status      PaymentStatus @default(PENDING)
+  method      PaymentMethod?
+
+  paidAt      DateTime?     @db.Timestamptz
+  notes       String?       @db.VarChar(255)
+
+  createdAt   DateTime      @default(now()) @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @db.Timestamptz
+
+  session     ClinicalSession @relation(fields: [sessionId], references: [id])
+  patient     Patient         @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, status])
+  @@index([therapistId, status])
+  @@index([status])
+  @@map("session_payments")
+}
+
+// =============================================================================
+// MODELO: PsychTestResult (Resultados de Pruebas Psicométricas)
+// Beck, Hamilton, BAI, MMPI-2, etc. Para ver evolución gráfica.
+// =============================================================================
+
+model PsychTestResult {
+  id          String   @id @default(uuid()) @db.Uuid
+  patientId   String   @db.Uuid
+  sessionId   String?  @db.Uuid
+  therapistId String   @db.Uuid
+
+  testName    String   @db.VarChar(100)
+  testCode    String?  @db.VarChar(30)
+  rawScore    Decimal  @db.Decimal(10, 2)
+  maxScore    Decimal? @db.Decimal(10, 2)
+  severity    String?  @db.VarChar(50)
+  percentile  Decimal? @db.Decimal(5, 2)
+
+  notes       String?  @db.VarChar(500)
+  appliedAt   DateTime @db.Timestamptz
+
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  patient     Patient          @relation(fields: [patientId], references: [id])
+  session     ClinicalSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([patientId, testName])
+  @@index([patientId, appliedAt])
+  @@index([therapistId])
+  @@map("psych_test_results")
+}
+
+// =============================================================================
+// MODELO: PatientAttachment (Archivos Adjuntos del Paciente)
+// Genogramas, pruebas escaneadas, reportes de psiquiatras, consentimientos.
+// =============================================================================
+
+model PatientAttachment {
+  id            String             @id @default(uuid()) @db.Uuid
+  patientId     String             @db.Uuid
+  uploadedBy    String             @db.Uuid
+  sessionId     String?            @db.Uuid
+
+  fileName      String             @db.VarChar(255)
+  fileType      String             @db.VarChar(100)
+  fileSizeBytes Int
+  storagePath   String             @db.VarChar(500)
+  category      AttachmentCategory @default(OTHER)
+  description   String?            @db.VarChar(255)
+
+  deletedAt     DateTime?          @db.Timestamptz
+  createdAt     DateTime           @default(now()) @db.Timestamptz
+
+  patient       Patient            @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, deletedAt])
+  @@index([category])
+  @@map("patient_attachments")
 }
