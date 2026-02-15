@@ -1,0 +1,75 @@
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+}
+
+.label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.required {
+    color: var(--color-danger);
+    margin-left: 2px;
+}
+
+.textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--color-text-primary);
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    resize: vertical;
+    min-height: 100px;
+    transition: all var(--transition-fast);
+}
+
+.textarea:focus {
+    outline: none;
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.hasError .textarea {
+    border-color: var(--color-danger);
+}
+
+.hasError .textarea:focus {
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.error {
+    font-size: 0.75rem;
+    color: var(--color-danger);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.error::before {
+    content: '⚠';
+}
+
+.helpText {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+/* Mobile - prevent iOS zoom on focus */
+@media (max-width: 640px) {
+    .textarea {
+        font-size: 16px;
+        padding: 0.625rem var(--spacing-md);
+    }
+}

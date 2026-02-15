@@ -1,0 +1,152 @@
+.header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.headerTop {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.errorBanner,
+.successBanner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.errorBanner {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--color-error);
+}
+
+.successBanner {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--color-success);
+}
+
+.errorBanner button,
+.successBanner button {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: inherit;
+}
+
+.infoCard,
+.actionsCard {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+}
+
+.infoCard h3,
+.actionsCard h3 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-lg);
+}
+
+.infoGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.infoItem {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.infoLabel {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+}
+
+.infoValue {
+    font-size: 1rem;
+    color: var(--color-text-primary);
+}
+
+.notes {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.notes p {
+    margin: var(--spacing-sm) 0 0;
+}
+
+.cancelInfo {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: var(--radius-md);
+}
+
+.cancelInfo strong {
+    color: var(--color-error);
+    font-size: 0.875rem;
+}
+
+.cancelInfo p {
+    margin: var(--spacing-sm) 0 0;
+}
+
+.actionButtons {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.noActionsMessage {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.sessionLink {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.footer {
+    margin-top: var(--spacing-xl);
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .headerTop {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .infoGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .infoCard,
+    .actionsCard {
+        padding: var(--spacing-md);
+    }
+
+    .actionButtons {
+        flex-direction: column;
+    }
+
+    .actionButtons>* {
+        width: 100%;
+    }
+}

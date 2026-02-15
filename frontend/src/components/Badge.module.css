@@ -1,0 +1,49 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+.default {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+}
+
+.draft {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+.pending {
+    background: rgba(217, 119, 6, 0.1);
+    color: #b45309;
+}
+
+.signed {
+    background: rgba(5, 150, 105, 0.1);
+    color: #059669;
+}
+
+.amended {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+
+.voided {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+}
+
+.success {
+    background: rgba(5, 150, 105, 0.1);
+    color: var(--color-success);
+}
+
+.error {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--color-error);
+}

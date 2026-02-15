@@ -1,0 +1,718 @@
+// =============================================================================
+// SYNTEGRA CLINICAL OS - PRISMA SCHEMA
+// Base de datos clínica regulada con Zero Trust, RBAC+ABAC, Soft Delete
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS - Valores inmutables del sistema
+// =============================================================================
+
+enum GlobalRole {
+  TERAPEUTA
+  ASISTENTE
+  SUPERVISOR
+  AUDITOR
+}
+
+enum ContextualRole {
+  TERAPEUTA_TITULAR // Responsable principal del paciente
+  TERAPEUTA_APOYO // Coterapeuta o sustituto
+  SUPERVISOR_CASO // Supervisa el caso clínico
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum SessionType {
+  INDIVIDUAL
+  COUPLE
+  FAMILY
+  GROUP
+}
+
+// Estado legal de sesiones clínicas
+// Obligatorio para cumplimiento NOM-004-SSA3
+enum SessionLegalStatus {
+  DRAFT // En edición - modificable
+  PENDING_REVIEW // Completada, pendiente de revisión
+  SIGNED // Firmada digitalmente - inmutable
+  AMENDED // Firmada con enmienda posterior (addendum)
+  VOIDED // Anulada legalmente con justificación
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXPORT
+  DECRYPT
+  SIGN // Firma digital de documentos
+  AMEND // Enmienda post-firma
+  VOID // Anulación legal
+  LOGIN
+  LOGOUT
+  ACCESS_DENIED
+}
+
+enum AuditResource {
+  USER
+  PATIENT
+  APPOINTMENT
+  CLINICAL_SESSION
+  SHADOW_NOTE
+  CLINICAL_COLLABORATION
+}
+
+// =============================================================================
+// MODELO: User (Usuarios del sistema - Personal)
+// Solo personal clínico/administrativo. Pacientes NO son usuarios.
+// =============================================================================
+
+model User {
+  id                String     @id @default(uuid()) @db.Uuid
+  email             String     @unique @db.VarChar(255)
+  passwordHash      String     @db.VarChar(255)
+  globalRole        GlobalRole
+  firstName         String     @db.VarChar(100)
+  lastName          String     @db.VarChar(100)
+  licenseNumber     String?    @db.VarChar(50) // Cédula profesional
+  phone             String?    @db.VarChar(20)
+  isActive          Boolean    @default(true)
+  mfaEnabled        Boolean    @default(false)
+  mfaSecret         String?    @db.VarChar(255)
+  lastLoginAt       DateTime?  @db.Timestamptz
+  passwordChangedAt DateTime   @default(now()) @db.Timestamptz
+
+  // Soft Delete
+  deletedAt DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  collaborations          ClinicalCollaboration[]
+  sessionsAsTherapist     ClinicalSession[]       @relation("TherapistSessions")
+  appointmentsAsTherapist Appointment[]           @relation("TherapistAppointments")
+  shadowNotes             ShadowNote[]
+  auditLogs               AuditLog[]              @relation("AuditActor")
+  refreshTokens           RefreshToken[]
+  patientsCreated         Patient[]               @relation("PatientCreator")
+  clinicalHistories       ClinicalHistory[]       @relation("HistoryTherapist")
+
+  @@index([email])
+  @@index([globalRole])
+  @@index([deletedAt])
+  @@index([isActive, deletedAt])
+  @@map("users")
+}
+
+// =============================================================================
+// MODELO: RefreshToken (Tokens de refresco para JWT)
+// Rotativos para seguridad. Se invalidan al usarse.
+// =============================================================================
+
+model RefreshToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  token       String    @unique @db.VarChar(500)
+  userId      String    @db.Uuid
+  expiresAt   DateTime  @db.Timestamptz
+  isRevoked   Boolean   @default(false)
+  revokedAt   DateTime? @db.Timestamptz
+  revokeReason String?  @db.VarChar(100) // "rotation", "logout", "password_change", "security_event"
+  userAgent   String?   @db.VarChar(500)
+  ipAddress   String?   @db.VarChar(45)
+  
+  // Seguridad: Binding y Rotación
+  fingerprint String    @db.VarChar(64)  // SHA-256(ip + userAgent) para validación
+  familyId    String    @db.Uuid         // Agrupa tokens de misma sesión para detección de reuso
+
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  // Relaciones
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId, isRevoked])
+  @@index([expiresAt])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// =============================================================================
+// MODELO: Patient (Pacientes)
+// Pacientes NO son usuarios del sistema. Solo tienen expediente.
+// =============================================================================
+
+model Patient {
+  id           String    @id @default(uuid()) @db.Uuid
+  externalId   String    @unique @db.VarChar(50) // ID visible (no UUID)
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  dateOfBirth  DateTime? @db.Date
+  gender       String?   @db.VarChar(20)
+  contactEmail String?   @db.VarChar(255)
+  contactPhone String?   @db.VarChar(20)
+  address      String?   @db.VarChar(500)
+
+  // Custodio (para menores o pacientes con tutor legal)
+  custodianName     String? @db.VarChar(200)
+  custodianPhone    String? @db.VarChar(20)
+  custodianEmail    String? @db.VarChar(255)
+  custodianRelation String? @db.VarChar(50) // "Padre", "Madre", "Tutor Legal"
+
+  // Contacto de emergencia (diferente del custodio)
+  emergencyContactName String? @db.VarChar(200)
+  emergencyPhone       String? @db.VarChar(20)
+  emergencyRelation    String? @db.VarChar(50)
+
+  // Estado
+  isActive Boolean @default(true)
+
+  // Trazabilidad legal (NOM-004-SSA3)
+  createdBy String? @db.Uuid // Usuario que registró al paciente
+
+  // Soft Delete
+  deletedAt DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  clinicalTeam    ClinicalCollaboration[]
+  appointments    Appointment[]
+  sessions        ClinicalSession[]
+  versions        PatientVersion[] // Historial de cambios demográficos
+  creator         User?                   @relation("PatientCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  clinicalHistory ClinicalHistory?
+
+  @@index([externalId])
+  @@index([lastName, firstName])
+  @@index([deletedAt])
+  @@index([isActive, deletedAt])
+  @@index([createdBy])
+  @@map("patients")
+}
+
+// =============================================================================
+// MODELO: ClinicalHistory (Historia Clínica Psicológica)
+// NOM-004-SSA3 compliant. Una por paciente.
+// Secciones almacenadas en JSON para flexibilidad.
+// =============================================================================
+
+model ClinicalHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  patientId   String   @unique @db.Uuid // Una historia por paciente
+  therapistId String   @db.Uuid         // Psicólogo tratante
+
+  // Fecha de apertura del expediente
+  openedAt DateTime @default(now()) @db.Timestamptz
+
+  // I. FICHA DE IDENTIFICACIÓN (complementa Patient)
+  // birthPlace, maritalStatus, education, occupation, address, referralSource
+  identification Json? @db.JsonB
+
+  // II. MOTIVO DE CONSULTA
+  // patientStatement (textual), onsetAndCourse
+  consultation Json? @db.JsonB
+
+  // III. ANTECEDENTES (Anamnesis)
+  // personalPathological: { chronicDiseases, medications, substances[], previousTreatments }
+  // hereditaryFamily: text
+  // familyDynamics: text (genograma description)
+  antecedents Json? @db.JsonB
+
+  // IV. EXAMEN MENTAL
+  // appearance, consciousness, orientation, language, memory, mood, thinking, judgment
+  mentalExam Json? @db.JsonB
+
+  // V. IMPRESIÓN DIAGNÓSTICA
+  // hypothesis, diagnosticCode (CIE-10/DSM-5)
+  diagnosticImpression Json? @db.JsonB
+
+  // VI. PLAN DE TRATAMIENTO
+  // objectives[], modality, frequency, prognosis
+  treatmentPlan Json? @db.JsonB
+
+  // Firma
+  therapistSignature String? @db.VarChar(500)
+  signedAt           DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  therapist User    @relation("HistoryTherapist", fields: [therapistId], references: [id])
+
+  @@index([patientId])
+  @@index([therapistId])
+  @@map("clinical_histories")
+}
+
+// =============================================================================
+// MODELO: ClinicalCollaboration (Equipo Clínico por Paciente)
+// Define quién tiene acceso a qué paciente y con qué rol contextual.
+// Implementa ABAC: ownership basado en asignación explícita.
+// =============================================================================
+
+model ClinicalCollaboration {
+  id             String         @id @default(uuid()) @db.Uuid
+  patientId      String         @db.Uuid
+  userId         String         @db.Uuid
+  contextualRole ContextualRole
+
+  // Período de validez (para sustituciones temporales)
+  startDate DateTime  @default(now()) @db.Date
+  endDate   DateTime? @db.Date
+
+  // Estado
+  isActive Boolean @default(true)
+
+  // Soft Delete
+  deletedAt DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  // Un usuario solo puede tener un rol activo por paciente
+  @@unique([patientId, userId, isActive], name: "unique_active_collaboration")
+  @@index([patientId, isActive, deletedAt])
+  @@index([userId, isActive, deletedAt])
+  @@index([contextualRole])
+  @@index([startDate, endDate])
+  @@map("clinical_collaborations")
+}
+
+// =============================================================================
+// MODELO: Appointment (Citas)
+// Agenda y programación. NO contiene datos clínicos.
+// =============================================================================
+
+model Appointment {
+  id             String            @id @default(uuid()) @db.Uuid
+  patientId      String            @db.Uuid
+  therapistId    String            @db.Uuid
+  scheduledStart DateTime          @db.Timestamptz
+  scheduledEnd   DateTime          @db.Timestamptz
+  status         AppointmentStatus @default(SCHEDULED)
+  sessionType    SessionType       @default(INDIVIDUAL)
+
+  // Notas administrativas (no clínicas)
+  adminNotes String? @db.VarChar(500)
+
+  // Cancelación
+  cancelledAt  DateTime? @db.Timestamptz
+  cancelReason String?   @db.VarChar(255)
+
+  // Confirmación
+  confirmedAt    DateTime? @db.Timestamptz
+  reminderSentAt DateTime? @db.Timestamptz
+
+  // Soft Delete
+  deletedAt DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  patient   Patient          @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  therapist User             @relation("TherapistAppointments", fields: [therapistId], references: [id], onDelete: Restrict)
+  session   ClinicalSession?
+
+  @@index([patientId, status])
+  @@index([therapistId, status])
+  @@index([scheduledStart, scheduledEnd])
+  @@index([status, deletedAt])
+  @@index([scheduledStart, status, deletedAt])
+  @@map("appointments")
+}
+
+// =============================================================================
+// MODELO: ClinicalSession (Sesión Clínica)
+// Registro formal de la sesión. La narrativa clínica está en JSONB cifrado.
+// =============================================================================
+
+model ClinicalSession {
+  id            String @id @default(uuid()) @db.Uuid
+  appointmentId String @unique @db.Uuid
+  patientId     String @db.Uuid
+  therapistId   String @db.Uuid
+
+  // Timing real (diferente de la cita programada)
+  startedAt       DateTime  @db.Timestamptz
+  endedAt         DateTime? @db.Timestamptz
+  durationMinutes Int?
+
+  // Narrativa clínica cifrada (JSONB)
+  // Estructura: { subjectiveReport, objectiveObservation, assessment, plan }
+  clinicalNarrativeEncrypted Bytes?
+  narrativeIV                Bytes?  @db.ByteA // Vector de inicialización
+  narrativeKeyId             String? @db.Uuid // ID de la clave usada
+
+  // Firma digital del terapeuta (inmutable post-firma)
+  signedAt      DateTime? @db.Timestamptz
+  signatureHash String?   @db.VarChar(256)
+
+  // Estado (legacy - mantener por compatibilidad)
+  isDraft  Boolean @default(true)
+  isLocked Boolean @default(false) // Post-firma = locked
+
+  // Estado legal explícito (NOM-004-SSA3)
+  legalStatus SessionLegalStatus @default(DRAFT)
+
+  // Enmienda post-firma (addendum legal)
+  amendedAt   DateTime? @db.Timestamptz
+  amendReason String?   @db.VarChar(500)
+  amendedBy   String?   @db.Uuid
+
+  // Anulación legal (requiere justificación)
+  voidedAt   DateTime? @db.Timestamptz
+  voidReason String?   @db.VarChar(500)
+  voidedBy   String?   @db.Uuid
+
+  // Soft Delete
+  deletedAt DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  appointment Appointment              @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  patient     Patient                  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  therapist   User                     @relation("TherapistSessions", fields: [therapistId], references: [id], onDelete: Restrict)
+  shadowNote  ShadowNote?
+  versions    ClinicalSessionVersion[]
+  addendums   SessionAddendum[]
+
+  @@index([patientId, deletedAt])
+  @@index([therapistId, deletedAt])
+  @@index([startedAt])
+  @@index([isDraft, isLocked])
+  @@index([signedAt])
+  @@index([legalStatus])
+  @@map("clinical_sessions")
+}
+
+// =============================================================================
+// MODELO: ClinicalSessionVersion (Versiones de Sesión Clínica)
+// Historial de cambios pre-firma. Requisito de auditoría.
+// =============================================================================
+
+model ClinicalSessionVersion {
+  id            String @id @default(uuid()) @db.Uuid
+  sessionId     String @db.Uuid
+  versionNumber Int
+
+  // Snapshot del contenido cifrado en este momento
+  narrativeSnapshotEncrypted Bytes
+  narrativeIV                Bytes  @db.ByteA
+  narrativeKeyId             String @db.Uuid
+
+  // Metadatos del cambio
+  changedBy    String  @db.Uuid
+  changeReason String? @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  // Relaciones
+  session ClinicalSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, versionNumber])
+  @@index([sessionId])
+  @@map("clinical_session_versions")
+}
+
+// =============================================================================
+// MODELO: SessionAddendum (Enmiendas Post-Firma)
+// Addendums legales que NO modifican el contenido original.
+// Cada addendum es un documento separado con su propia firma.
+// =============================================================================
+
+model SessionAddendum {
+  id        String @id @default(uuid()) @db.Uuid
+  sessionId String @db.Uuid
+
+  // Secuencia de addendums para esta sesión
+  sequenceNumber Int
+
+  // Contenido del addendum (cifrado)
+  contentEncrypted Bytes
+  contentIV        Bytes  @db.ByteA
+  contentKeyId     String @db.Uuid
+
+  // Razón del addendum (obligatoria legalmente)
+  reason String @db.VarChar(500)
+
+  // Autor del addendum
+  authorId String @db.Uuid
+
+  // Firma del addendum
+  signedAt      DateTime? @db.Timestamptz
+  signatureHash String?   @db.VarChar(256)
+  isLocked      Boolean   @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  // Relaciones
+  session ClinicalSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, sequenceNumber])
+  @@index([sessionId])
+  @@index([authorId])
+  @@map("session_addendums")
+}
+
+// =============================================================================
+// MODELO: ShadowNote (Nota Sombra)
+// Notas PRIVADAS del terapeuta. Cifradas con clave personal.
+// NUNCA accesibles por supervisores, auditores, ni otros terapeutas.
+// =============================================================================
+
+model ShadowNote {
+  id          String @id @default(uuid()) @db.Uuid
+  sessionId   String @unique @db.Uuid
+  therapistId String @db.Uuid
+
+  // Contenido cifrado con clave PERSONAL del terapeuta
+  // Solo el terapeuta propietario puede descifrar
+  contentEncrypted Bytes
+  contentIV        Bytes @db.ByteA
+
+  // Soft Delete
+  deletedAt DateTime? @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relaciones
+  session   ClinicalSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  therapist User            @relation(fields: [therapistId], references: [id], onDelete: Restrict)
+
+  @@index([therapistId, deletedAt])
+  @@index([sessionId])
+  @@map("shadow_notes")
+}
+
+// =============================================================================
+// MODELO: AuditLog (Registro de Auditoría)
+// Inmutable. Registra TODOS los accesos a datos clínicos.
+// NUNCA se elimina ni modifica.
+// =============================================================================
+
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  // Actor
+  actorId        String?     @db.Uuid // Null si es sistema
+  actorRole      GlobalRole?
+  actorIp        String      @db.VarChar(45)
+  actorUserAgent String?     @db.VarChar(500)
+
+  // Acción
+  action     AuditAction
+  resource   AuditResource
+  resourceId String        @db.Uuid
+
+  // Contexto
+  patientId String? @db.Uuid // Si aplica
+  details   Json? // Metadatos adicionales (sin datos sensibles)
+
+  // Resultado
+  success       Boolean @default(true)
+  failureReason String? @db.VarChar(255)
+
+  // Timestamp (inmutable)
+  timestamp DateTime @default(now()) @db.Timestamptz
+
+  // Relaciones (solo para queries, no integridad referencial)
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  // IMPORTANTE: Sin deletedAt - Los logs son INMUTABLES
+
+  @@index([actorId])
+  @@index([resource, resourceId])
+  @@index([patientId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([actorId, timestamp])
+  @@index([patientId, timestamp])
+  @@index([resource, action, timestamp])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// MODELO: LegalHold (Retención Legal)
+// Marca recursos que no pueden ser eliminados/modificados por procesos legales.
+// =============================================================================
+
+model LegalHold {
+  id           String    @id @default(uuid()) @db.Uuid
+  
+  // Recurso bajo retención
+  resourceType String    @db.VarChar(50) // "PATIENT", "CLINICAL_SESSION", "SHADOW_NOTE"
+  resourceId   String    @db.Uuid
+  
+  // Razón y alcance
+  reason       String    @db.VarChar(500) // "Investigación legal", "Auditoría SSA", etc.
+  caseNumber   String?   @db.VarChar(100) // Número de caso/expediente legal
+  
+  // Período
+  holdUntil    DateTime? @db.Timestamptz // null = indefinido
+  isActive     Boolean   @default(true)
+  
+  // Trazabilidad
+  createdBy    String    @db.Uuid
+  releasedBy   String?   @db.Uuid
+  releasedAt   DateTime? @db.Timestamptz
+  releaseReason String?  @db.VarChar(255)
+  
+  // Timestamps
+  createdAt    DateTime  @default(now()) @db.Timestamptz
+  
+  @@index([resourceType, resourceId])
+  @@index([isActive])
+  @@index([createdBy])
+  @@map("legal_holds")
+}
+
+// =============================================================================
+// MODELO: ExportRecord (Registro de Exportaciones)
+// Trazabilidad detallada de exportaciones de datos clínicos.
+// =============================================================================
+
+model ExportRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  
+  // Actor
+  exportedBy   String   @db.Uuid
+  exportedByIp String   @db.VarChar(45)
+  
+  // Qué se exportó
+  resourceType String   @db.VarChar(50) // "SESSION", "PATIENT_HISTORY"
+  resourceId   String   @db.Uuid
+  patientId    String?  @db.Uuid
+  
+  // Formato y opciones
+  format       String   @db.VarChar(20) // "JSON", "PDF", "CSV"
+  includesPII  Boolean  @default(false)
+  maskedPII    Boolean  @default(false)
+  
+  // Resultado
+  success      Boolean  @default(true)
+  recordCount  Int      @default(1)
+  fileSizeBytes Int?
+  
+  // Timestamp
+  exportedAt   DateTime @default(now()) @db.Timestamptz
+  
+  @@index([exportedBy])
+  @@index([resourceType, resourceId])
+  @@index([patientId])
+  @@index([exportedAt])
+  @@map("export_records")
+}
+
+// =============================================================================
+// MODELO: EncryptionKey (Registro de Claves de Cifrado)
+// Metadatos de claves para rotación. Las claves reales están en HSM/Vault.
+// =============================================================================
+
+model EncryptionKey {
+  id        String @id @default(uuid()) @db.Uuid
+  purpose   String @db.VarChar(50) // "CLINICAL_NOTES", "SHADOW_NOTES"
+  version   Int
+  algorithm String @default("AES-256-GCM") @db.VarChar(50)
+
+  // Estado
+  isActive    Boolean   @default(true)
+  activatedAt DateTime  @default(now()) @db.Timestamptz
+  rotatedAt   DateTime? @db.Timestamptz
+  expiresAt   DateTime? @db.Timestamptz
+
+  // Referencia externa a HSM/Vault (no la clave real)
+  vaultKeyPath String @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@unique([purpose, version])
+  @@index([purpose, isActive])
+  @@map("encryption_keys")
+}
+
+// =============================================================================
+// MODELO: PatientVersion (Historial de Cambios Demográficos)
+// Registro de cambios en datos demográficos del paciente.
+// Requisito NOM-004-SSA3 para trazabilidad de expedientes.
+// =============================================================================
+
+model PatientVersion {
+  id            String @id @default(uuid()) @db.Uuid
+  patientId     String @db.Uuid
+  versionNumber Int
+
+  // Snapshot de datos demográficos al momento del cambio
+  // Estructura: { firstName, lastName, dateOfBirth, contactEmail, ... }
+  snapshotData Json
+
+  // Metadatos del cambio
+  changedBy     String   @db.Uuid // Usuario que realizó el cambio
+  changeReason  String?  @db.VarChar(255)
+  changedFields String[] // Campos que cambiaron
+
+  // Timestamp inmutable
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@unique([patientId, versionNumber])
+  @@index([patientId])
+  @@index([changedBy])
+  @@index([createdAt])
+  @@map("patient_versions")
+}
+
+// =============================================================================
+// MODELO: SystemConfig (Configuración del sistema)
+// Flags de sistema como bootstrap completed
+// =============================================================================
+
+model SystemConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  metadata  Json?    // Información adicional (IP, userAgent, etc)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@map("system_config")
+}
