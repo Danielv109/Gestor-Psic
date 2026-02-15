@@ -58,6 +58,11 @@ export declare class PatientsRepository {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }) | null>;
     createCollaboration(data: {
         patientId: string;

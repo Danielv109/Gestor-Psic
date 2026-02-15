@@ -185,6 +185,37 @@ export class PatientsService {
         return patient;
     }
 
+    async updateRisk(
+        id: string,
+        dto: { isHighRisk: boolean; riskLevel?: string; riskNotes?: string },
+        actor: AuthenticatedUser,
+    ) {
+        const existing = await this.patientsRepo.findById(id);
+        if (!existing) throw new NotFoundException(`Paciente ${id} no encontrado`);
+
+        const updated = await this.patientsRepo.update(id, {
+            isHighRisk: dto.isHighRisk,
+            riskLevel: dto.riskLevel || (dto.isHighRisk ? 'HIGH' : null),
+            riskNotes: dto.riskNotes || null,
+            riskAssessedAt: new Date(),
+            riskAssessedBy: actor.id,
+        });
+
+        await this.auditService.log({
+            actorId: actor.id,
+            actorRole: actor.globalRole,
+            actorIp: actor.ip,
+            action: AuditAction.UPDATE,
+            resource: AuditResource.PATIENT,
+            resourceId: id,
+            patientId: id,
+            success: true,
+            details: { riskUpdate: true, isHighRisk: dto.isHighRisk, riskLevel: dto.riskLevel },
+        });
+
+        return updated;
+    }
+
     private generateExternalId(): string {
         // Formato: PAT-YYYYMMDD-XXXX
         const date = new Date();

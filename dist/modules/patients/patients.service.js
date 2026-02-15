@@ -150,6 +150,30 @@ let PatientsService = class PatientsService {
         });
         return patient;
     }
+    async updateRisk(id, dto, actor) {
+        const existing = await this.patientsRepo.findById(id);
+        if (!existing)
+            throw new common_1.NotFoundException(`Paciente ${id} no encontrado`);
+        const updated = await this.patientsRepo.update(id, {
+            isHighRisk: dto.isHighRisk,
+            riskLevel: dto.riskLevel || (dto.isHighRisk ? 'HIGH' : null),
+            riskNotes: dto.riskNotes || null,
+            riskAssessedAt: new Date(),
+            riskAssessedBy: actor.id,
+        });
+        await this.auditService.log({
+            actorId: actor.id,
+            actorRole: actor.globalRole,
+            actorIp: actor.ip,
+            action: client_1.AuditAction.UPDATE,
+            resource: client_1.AuditResource.PATIENT,
+            resourceId: id,
+            patientId: id,
+            success: true,
+            details: { riskUpdate: true, isHighRisk: dto.isHighRisk, riskLevel: dto.riskLevel },
+        });
+        return updated;
+    }
     generateExternalId() {
         const date = new Date();
         const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');

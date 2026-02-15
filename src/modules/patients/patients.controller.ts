@@ -4,6 +4,7 @@ import {
     Get,
     Post,
     Put,
+    Patch,
     Delete,
     Body,
     Param,
@@ -110,5 +111,21 @@ export class PatientsController {
         @CurrentUser() user: AuthenticatedUser,
     ) {
         await this.patientsService.softDelete(id, user);
+    }
+
+    /**
+     * PATCH /patients/:id/risk
+     * Actualizar alerta de riesgo del paciente
+     * Solo TERAPEUTA y SUPERVISOR pueden marcar riesgo
+     */
+    @Patch(':id/risk')
+    @Roles(GlobalRole.TERAPEUTA, GlobalRole.SUPERVISOR)
+    @CheckPolicies(PatientAccessPolicy)
+    async updateRisk(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: { isHighRisk: boolean; riskLevel?: string; riskNotes?: string },
+        @CurrentUser() user: AuthenticatedUser,
+    ) {
+        return this.patientsService.updateRisk(id, dto, user);
     }
 }

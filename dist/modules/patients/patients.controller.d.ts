@@ -26,6 +26,11 @@ export declare class PatientsController {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     findMyPatients(user: AuthenticatedUser): Promise<{
         id: string;
@@ -49,6 +54,11 @@ export declare class PatientsController {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }[]>;
     findById(id: string, user: AuthenticatedUser): Promise<{
         id: string;
@@ -72,6 +82,11 @@ export declare class PatientsController {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     findWithTeam(id: string, user: AuthenticatedUser): Promise<{
         clinicalTeam: ({
@@ -115,6 +130,11 @@ export declare class PatientsController {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     update(id: string, dto: UpdatePatientDto, user: AuthenticatedUser): Promise<{
         id: string;
@@ -138,6 +158,43 @@ export declare class PatientsController {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     remove(id: string, user: AuthenticatedUser): Promise<void>;
+    updateRisk(id: string, dto: {
+        isHighRisk: boolean;
+        riskLevel?: string;
+        riskNotes?: string;
+    }, user: AuthenticatedUser): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        isActive: boolean;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
+        externalId: string;
+        dateOfBirth: Date | null;
+        gender: string | null;
+        contactEmail: string | null;
+        contactPhone: string | null;
+        address: string | null;
+        custodianName: string | null;
+        custodianPhone: string | null;
+        custodianEmail: string | null;
+        custodianRelation: string | null;
+        emergencyContactName: string | null;
+        emergencyPhone: string | null;
+        emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
+    }>;
 }

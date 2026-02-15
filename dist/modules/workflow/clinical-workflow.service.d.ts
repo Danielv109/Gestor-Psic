@@ -89,6 +89,7 @@ export declare class ClinicalWorkflowService {
             amendedBy: string | null;
             voidedAt: Date | null;
             voidReason: string | null;
+            safetyProtocol: string | null;
             voidedBy: string | null;
         };
         appointmentStatus: "IN_PROGRESS";
@@ -118,6 +119,7 @@ export declare class ClinicalWorkflowService {
             amendedBy: string | null;
             voidedAt: Date | null;
             voidReason: string | null;
+            safetyProtocol: string | null;
             voidedBy: string | null;
         };
         durationMinutes: number;
@@ -148,6 +150,7 @@ export declare class ClinicalWorkflowService {
             amendedBy: string | null;
             voidedAt: Date | null;
             voidReason: string | null;
+            safetyProtocol: string | null;
             voidedBy: string | null;
         };
         signatureHash: string;

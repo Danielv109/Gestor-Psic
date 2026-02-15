@@ -10,7 +10,10 @@ export declare class ClinicalHistoryService {
     create(dto: CreateClinicalHistoryDto, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
+        createdAt: Date;
+        updatedAt: Date;
         therapistId: string;
+        signedAt: Date | null;
         openedAt: Date;
         identification: Prisma.JsonValue | null;
         consultation: Prisma.JsonValue | null;
@@ -19,14 +22,14 @@ export declare class ClinicalHistoryService {
         diagnosticImpression: Prisma.JsonValue | null;
         treatmentPlan: Prisma.JsonValue | null;
         therapistSignature: string | null;
-        signedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findByPatientId(patientId: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
+        createdAt: Date;
+        updatedAt: Date;
         therapistId: string;
+        signedAt: Date | null;
         openedAt: Date;
         identification: Prisma.JsonValue | null;
         consultation: Prisma.JsonValue | null;
@@ -35,14 +38,14 @@ export declare class ClinicalHistoryService {
         diagnosticImpression: Prisma.JsonValue | null;
         treatmentPlan: Prisma.JsonValue | null;
         therapistSignature: string | null;
-        signedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     } | null>;
     update(id: string, dto: UpdateClinicalHistoryDto, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
+        createdAt: Date;
+        updatedAt: Date;
         therapistId: string;
+        signedAt: Date | null;
         openedAt: Date;
         identification: Prisma.JsonValue | null;
         consultation: Prisma.JsonValue | null;
@@ -51,8 +54,5 @@ export declare class ClinicalHistoryService {
         diagnosticImpression: Prisma.JsonValue | null;
         treatmentPlan: Prisma.JsonValue | null;
         therapistSignature: string | null;
-        signedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
 }

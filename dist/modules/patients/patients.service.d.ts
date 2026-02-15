@@ -28,6 +28,11 @@ export declare class PatientsService {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     findById(id: string, actor: AuthenticatedUser): Promise<{
         id: string;
@@ -51,6 +56,11 @@ export declare class PatientsService {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     findByTherapist(therapistId: string, actor: AuthenticatedUser): Promise<{
         id: string;
@@ -74,6 +84,11 @@ export declare class PatientsService {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }[]>;
     update(id: string, dto: UpdatePatientDto, actor: AuthenticatedUser): Promise<{
         id: string;
@@ -97,6 +112,11 @@ export declare class PatientsService {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     softDelete(id: string, actor: AuthenticatedUser): Promise<{
         id: string;
@@ -120,6 +140,11 @@ export declare class PatientsService {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     findWithTeam(id: string, actor: AuthenticatedUser): Promise<{
         clinicalTeam: ({
@@ -163,6 +188,43 @@ export declare class PatientsService {
         emergencyContactName: string | null;
         emergencyPhone: string | null;
         emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
+    }>;
+    updateRisk(id: string, dto: {
+        isHighRisk: boolean;
+        riskLevel?: string;
+        riskNotes?: string;
+    }, actor: AuthenticatedUser): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        isActive: boolean;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
+        externalId: string;
+        dateOfBirth: Date | null;
+        gender: string | null;
+        contactEmail: string | null;
+        contactPhone: string | null;
+        address: string | null;
+        custodianName: string | null;
+        custodianPhone: string | null;
+        custodianEmail: string | null;
+        custodianRelation: string | null;
+        emergencyContactName: string | null;
+        emergencyPhone: string | null;
+        emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
     }>;
     private generateExternalId;
 }

@@ -7,7 +7,10 @@ export declare class ClinicalHistoryController {
     create(dto: CreateClinicalHistoryDto, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
+        createdAt: Date;
+        updatedAt: Date;
         therapistId: string;
+        signedAt: Date | null;
         openedAt: Date;
         identification: import("@prisma/client/runtime/library").JsonValue | null;
         consultation: import("@prisma/client/runtime/library").JsonValue | null;
@@ -16,14 +19,14 @@ export declare class ClinicalHistoryController {
         diagnosticImpression: import("@prisma/client/runtime/library").JsonValue | null;
         treatmentPlan: import("@prisma/client/runtime/library").JsonValue | null;
         therapistSignature: string | null;
-        signedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findByPatient(patientId: string, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
+        createdAt: Date;
+        updatedAt: Date;
         therapistId: string;
+        signedAt: Date | null;
         openedAt: Date;
         identification: import("@prisma/client/runtime/library").JsonValue | null;
         consultation: import("@prisma/client/runtime/library").JsonValue | null;
@@ -32,14 +35,14 @@ export declare class ClinicalHistoryController {
         diagnosticImpression: import("@prisma/client/runtime/library").JsonValue | null;
         treatmentPlan: import("@prisma/client/runtime/library").JsonValue | null;
         therapistSignature: string | null;
-        signedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     } | null>;
     update(id: string, dto: UpdateClinicalHistoryDto, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
+        createdAt: Date;
+        updatedAt: Date;
         therapistId: string;
+        signedAt: Date | null;
         openedAt: Date;
         identification: import("@prisma/client/runtime/library").JsonValue | null;
         consultation: import("@prisma/client/runtime/library").JsonValue | null;
@@ -48,8 +51,5 @@ export declare class ClinicalHistoryController {
         diagnosticImpression: import("@prisma/client/runtime/library").JsonValue | null;
         treatmentPlan: import("@prisma/client/runtime/library").JsonValue | null;
         therapistSignature: string | null;
-        signedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
 }

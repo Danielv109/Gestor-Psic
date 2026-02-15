@@ -352,3 +352,98 @@ export interface UpdateClinicalHistoryDto {
     treatmentPlan?: CHTreatmentPlan;
 }
 
+// =============================================================================
+// PAYMENT TYPES
+// =============================================================================
+
+export enum PaymentStatus {
+    PENDING = 'PENDING',
+    PAID = 'PAID',
+    PARTIAL = 'PARTIAL',
+    WAIVED = 'WAIVED',
+}
+
+export enum PaymentMethod {
+    CASH = 'CASH',
+    TRANSFER = 'TRANSFER',
+    CARD = 'CARD',
+    OTHER = 'OTHER',
+}
+
+export interface SessionPayment {
+    id: string;
+    sessionId: string;
+    patientId: string;
+    therapistId: string;
+    amount: number;
+    amountPaid: number;
+    status: PaymentStatus;
+    method?: PaymentMethod;
+    paidAt?: string;
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+    patient?: { id: string; firstName: string; lastName: string; externalId: string };
+    session?: { id: string; startedAt: string };
+}
+
+export interface PatientBalance {
+    totalOwed: number;
+    pendingCount: number;
+}
+
+// =============================================================================
+// PSYCH TEST TYPES
+// =============================================================================
+
+export interface PsychTestResult {
+    id: string;
+    patientId: string;
+    sessionId?: string;
+    therapistId: string;
+    testName: string;
+    testCode?: string;
+    rawScore: number;
+    maxScore?: number;
+    severity?: string;
+    percentile?: number;
+    notes?: string;
+    appliedAt: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface TestCatalogEntry {
+    code: string;
+    name: string;
+    maxScore: number | null;
+    severities: { min: number; max: number; label: string }[];
+}
+
+// =============================================================================
+// ATTACHMENT TYPES
+// =============================================================================
+
+export enum AttachmentCategory {
+    GENOGRAM = 'GENOGRAM',
+    PSYCH_TEST_SCAN = 'PSYCH_TEST_SCAN',
+    EXTERNAL_REPORT = 'EXTERNAL_REPORT',
+    CONSENT_FORM = 'CONSENT_FORM',
+    DRAWING = 'DRAWING',
+    OTHER = 'OTHER',
+}
+
+export interface PatientAttachment {
+    id: string;
+    patientId: string;
+    uploadedBy: string;
+    sessionId?: string;
+    fileName: string;
+    fileType: string;
+    fileSizeBytes: number;
+    storagePath: string;
+    category: AttachmentCategory;
+    description?: string;
+    createdAt: string;
+}
+

@@ -2,6 +2,7 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 
 // Core modules
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +21,10 @@ import { CollaborationsModule } from './modules/collaborations/collaborations.mo
 import { ShadowNotesModule } from './modules/shadow-notes/shadow-notes.module';
 import { ClinicalHistoryModule } from './modules/clinical-history/clinical-history.module';
 import { SystemModule } from './modules/system/system.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { PsychTestsModule } from './modules/psych-tests/psych-tests.module';
+import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
 
 // Common
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -36,6 +41,9 @@ import { RolesGuard } from './auth/guards/roles.guard';
             isGlobal: true,
             envFilePath: '.env',
         }),
+
+        // Scheduler (for cron jobs like reminders)
+        ScheduleModule.forRoot(),
 
         // Core
         PrismaModule,
@@ -55,6 +63,12 @@ import { RolesGuard } from './auth/guards/roles.guard';
         ShadowNotesModule,
         ClinicalHistoryModule,
         SystemModule,
+
+        // New features
+        PaymentsModule,
+        PsychTestsModule,
+        AttachmentsModule,
+        RemindersModule,
     ],
     providers: [
         {

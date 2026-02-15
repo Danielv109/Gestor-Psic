@@ -10,6 +10,7 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const core_1 = require("@nestjs/core");
+const schedule_1 = require("@nestjs/schedule");
 const prisma_module_1 = require("./prisma/prisma.module");
 const auth_module_1 = require("./auth/auth.module");
 const crypto_module_1 = require("./crypto/crypto.module");
@@ -24,6 +25,10 @@ const collaborations_module_1 = require("./modules/collaborations/collaborations
 const shadow_notes_module_1 = require("./modules/shadow-notes/shadow-notes.module");
 const clinical_history_module_1 = require("./modules/clinical-history/clinical-history.module");
 const system_module_1 = require("./modules/system/system.module");
+const payments_module_1 = require("./modules/payments/payments.module");
+const psych_tests_module_1 = require("./modules/psych-tests/psych-tests.module");
+const attachments_module_1 = require("./modules/attachments/attachments.module");
+const reminders_module_1 = require("./modules/reminders/reminders.module");
 const global_exception_filter_1 = require("./common/filters/global-exception.filter");
 const throttler_module_1 = require("./common/throttling/throttler.module");
 const jwt_auth_guard_1 = require("./auth/guards/jwt-auth.guard");
@@ -39,6 +44,7 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 envFilePath: '.env',
             }),
+            schedule_1.ScheduleModule.forRoot(),
             prisma_module_1.PrismaModule,
             crypto_module_1.CryptoModule,
             audit_module_1.AuditModule,
@@ -54,6 +60,10 @@ exports.AppModule = AppModule = __decorate([
             shadow_notes_module_1.ShadowNotesModule,
             clinical_history_module_1.ClinicalHistoryModule,
             system_module_1.SystemModule,
+            payments_module_1.PaymentsModule,
+            psych_tests_module_1.PsychTestsModule,
+            attachments_module_1.AttachmentsModule,
+            reminders_module_1.RemindersModule,
         ],
         providers: [
             {
