@@ -7,9 +7,6 @@ export declare class AppointmentsController {
     create(dto: CreateAppointmentDto, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -20,13 +17,13 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findUpcoming(user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -37,13 +34,13 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     findByRange(start: string, end: string, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -54,13 +51,13 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     findById(id: string, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -71,13 +68,13 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateAppointmentDto, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -88,13 +85,13 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     confirm(id: string, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -105,13 +102,13 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     cancel(id: string, dto: CancelAppointmentDto, user: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -122,6 +119,9 @@ export declare class AppointmentsController {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     remove(id: string, user: AuthenticatedUser): Promise<void>;
 }

@@ -271,3 +271,58 @@
         font-size: 0.65rem;
     }
 }
+
+/* SOAP form fields */
+.soapField {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.soapLabel {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-accent-primary);
+    letter-spacing: 0.03em;
+}
+
+/* SOAP display */
+.soapDisplay {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.soapSection {
+    border-left: 3px solid var(--color-accent-primary);
+    padding-left: var(--spacing-md);
+}
+
+.soapSection p {
+    margin: var(--spacing-xs) 0 0;
+    white-space: pre-wrap;
+    line-height: 1.6;
+}
+
+.soapTag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Action row */
+.actionRow {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.actionHint {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin: 0;
+}

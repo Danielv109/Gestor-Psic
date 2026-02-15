@@ -54,9 +54,6 @@ export declare class WorkflowController {
         appointment: {
             id: string;
             patientId: string;
-            deletedAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
             therapistId: string;
             scheduledStart: Date;
             scheduledEnd: Date;
@@ -67,6 +64,9 @@ export declare class WorkflowController {
             cancelReason: string | null;
             confirmedAt: Date | null;
             reminderSentAt: Date | null;
+            deletedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
         };
     }>;
     markNoShow(id: string, user: AuthenticatedUser): Promise<{
@@ -74,9 +74,6 @@ export declare class WorkflowController {
         appointment: {
             id: string;
             patientId: string;
-            deletedAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
             therapistId: string;
             scheduledStart: Date;
             scheduledEnd: Date;
@@ -87,6 +84,9 @@ export declare class WorkflowController {
             cancelReason: string | null;
             confirmedAt: Date | null;
             reminderSentAt: Date | null;
+            deletedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
         };
     }>;
     cancelAppointment(id: string, dto: CancelAppointmentDto, user: AuthenticatedUser): Promise<{
@@ -94,9 +94,6 @@ export declare class WorkflowController {
         appointment: {
             id: string;
             patientId: string;
-            deletedAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
             therapistId: string;
             scheduledStart: Date;
             scheduledEnd: Date;
@@ -107,6 +104,9 @@ export declare class WorkflowController {
             cancelReason: string | null;
             confirmedAt: Date | null;
             reminderSentAt: Date | null;
+            deletedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
         };
     }>;
     startSession(appointmentId: string, dto: StartSessionDto, user: AuthenticatedUser): Promise<{

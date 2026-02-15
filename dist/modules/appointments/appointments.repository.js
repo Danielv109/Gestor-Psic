@@ -41,16 +41,10 @@ let AppointmentsRepository = class AppointmentsRepository {
     async findByDateRange(therapistId, startDate, endDate) {
         return this.prisma.appointment.findMany({
             where: {
+                therapistId,
+                deletedAt: null,
                 scheduledStart: { gte: startDate },
                 scheduledEnd: { lte: endDate },
-                patient: {
-                    clinicalTeam: {
-                        some: {
-                            userId: therapistId,
-                            isActive: true,
-                        },
-                    },
-                },
             },
             include: {
                 patient: {
@@ -68,16 +62,9 @@ let AppointmentsRepository = class AppointmentsRepository {
     async findUpcoming(therapistId, limit = 10) {
         return this.prisma.appointment.findMany({
             where: {
-                scheduledStart: { gte: new Date() },
-                status: { in: [client_1.AppointmentStatus.SCHEDULED, client_1.AppointmentStatus.CONFIRMED] },
-                patient: {
-                    clinicalTeam: {
-                        some: {
-                            userId: therapistId,
-                            isActive: true,
-                        },
-                    },
-                },
+                therapistId,
+                deletedAt: null,
+                status: { notIn: [client_1.AppointmentStatus.CANCELLED, client_1.AppointmentStatus.COMPLETED] },
             },
             include: {
                 patient: {

@@ -37,16 +37,10 @@ export class AppointmentsRepository {
     ): Promise<Appointment[]> {
         return this.prisma.appointment.findMany({
             where: {
+                therapistId,
+                deletedAt: null,
                 scheduledStart: { gte: startDate },
                 scheduledEnd: { lte: endDate },
-                patient: {
-                    clinicalTeam: {
-                        some: {
-                            userId: therapistId,
-                            isActive: true,
-                        },
-                    },
-                },
             },
             include: {
                 patient: {
@@ -65,16 +59,9 @@ export class AppointmentsRepository {
     async findUpcoming(therapistId: string, limit = 10): Promise<Appointment[]> {
         return this.prisma.appointment.findMany({
             where: {
-                scheduledStart: { gte: new Date() },
-                status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED] },
-                patient: {
-                    clinicalTeam: {
-                        some: {
-                            userId: therapistId,
-                            isActive: true,
-                        },
-                    },
-                },
+                therapistId,
+                deletedAt: null,
+                status: { notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED] },
             },
             include: {
                 patient: {

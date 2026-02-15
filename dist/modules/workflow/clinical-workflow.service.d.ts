@@ -16,9 +16,6 @@ export declare class ClinicalWorkflowService {
     confirmAppointment(appointmentId: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -29,13 +26,13 @@ export declare class ClinicalWorkflowService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     markNoShow(appointmentId: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -46,13 +43,13 @@ export declare class ClinicalWorkflowService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     cancelAppointment(appointmentId: string, reason: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -63,16 +60,19 @@ export declare class ClinicalWorkflowService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     startSession(appointmentId: string, actor: AuthenticatedUser, initialNarrative?: ClinicalNarrative): Promise<{
         session: {
             id: string;
             patientId: string;
+            therapistId: string;
             deletedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
             appointmentId: string;
-            therapistId: string;
             startedAt: Date;
             endedAt: Date | null;
             durationMinutes: number | null;
@@ -98,11 +98,11 @@ export declare class ClinicalWorkflowService {
         session: {
             id: string;
             patientId: string;
+            therapistId: string;
             deletedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
             appointmentId: string;
-            therapistId: string;
             startedAt: Date;
             endedAt: Date | null;
             durationMinutes: number | null;
@@ -129,11 +129,11 @@ export declare class ClinicalWorkflowService {
         session: {
             id: string;
             patientId: string;
+            therapistId: string;
             deletedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
             appointmentId: string;
-            therapistId: string;
             startedAt: Date;
             endedAt: Date | null;
             durationMinutes: number | null;

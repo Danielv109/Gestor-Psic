@@ -1,10 +1,9 @@
 // =============================================================================
 // SESSION DETAIL PAGE
-// View/edit session with legal state handling
-// Sign only via POST /workflow/session/:id/sign
+// View/edit session with SOAP narrative, live timer, legal state handling
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSession } from '../hooks';
 import { useAuth } from '../auth';
@@ -12,7 +11,7 @@ import { canEditSessionNarrative, canShowSignSessionButton, canViewSessionNarrat
 import { sessionsApi, workflowApi } from '../api';
 import { ApiClientError } from '../api/client';
 import { Spinner, Card, Badge, Button, ErrorMessage } from '../components';
-import { SessionLegalStatus, type UpdateSessionDto } from '../types';
+import { SessionLegalStatus, type ClinicalNarrative, type UpdateSessionDto } from '../types';
 import styles from './SessionDetail.module.css';
 
 export default function SessionDetail() {
@@ -25,34 +24,120 @@ export default function SessionDetail() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isSigning, setIsSigning] = useState(false);
+    const [isEnding, setIsEnding] = useState(false);
     const [actionError, setActionError] = useState('');
     const [signResult, setSignResult] = useState<{ hash: string } | null>(null);
 
-    // Form state
-    const [narrative, setNarrative] = useState('');
+    // SOAP form state
+    const [subjective, setSubjective] = useState('');
+    const [objective, setObjective] = useState('');
+    const [assessment, setAssessment] = useState('');
+    const [plan, setPlan] = useState('');
+    const [additionalNotes, setAdditionalNotes] = useState('');
 
-    // Derived permissions (from backend response, NOT role)
+    // Live duration timer
+    const [liveDuration, setLiveDuration] = useState(0);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Calculate live duration
+    useEffect(() => {
+        if (!session?.startedAt || session?.endedAt) return;
+
+        function tick() {
+            const started = new Date(session!.startedAt).getTime();
+            const now = Date.now();
+            setLiveDuration(Math.floor((now - started) / 60000));
+        }
+
+        tick(); // immediate
+        timerRef.current = setInterval(tick, 60000); // every minute
+
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [session?.startedAt, session?.endedAt]);
+
+    // Auto-finalize: end session 1 minute after scheduledEnd
+    const autoFinalizeFiredRef = useRef(false);
+    useEffect(() => {
+        if (!session || session.endedAt || !session.appointment?.scheduledEnd) return;
+        if (autoFinalizeFiredRef.current) return;
+
+        const deadline = new Date(session.appointment.scheduledEnd).getTime() + 60_000; // +1 min
+        const remaining = deadline - Date.now();
+
+        if (remaining <= 0) {
+            // Already past deadline — fire immediately
+            triggerAutoFinalize();
+            return;
+        }
+
+        const timeout = setTimeout(triggerAutoFinalize, remaining);
+        return () => clearTimeout(timeout);
+
+        async function triggerAutoFinalize() {
+            if (autoFinalizeFiredRef.current) return;
+            autoFinalizeFiredRef.current = true;
+
+            try {
+                const endedAt = new Date().toISOString();
+
+                // Build narrative from current form state (if user was editing)
+                const clinicalNarrative: ClinicalNarrative = {};
+                if (subjective.trim()) clinicalNarrative.subjectiveReport = subjective.trim();
+                if (objective.trim()) clinicalNarrative.objectiveObservation = objective.trim();
+                if (assessment.trim()) clinicalNarrative.assessment = assessment.trim();
+                if (plan.trim()) clinicalNarrative.plan = plan.trim();
+                if (additionalNotes.trim()) clinicalNarrative.additionalNotes = additionalNotes.trim();
+
+                const dto: UpdateSessionDto = { endedAt };
+                if (Object.keys(clinicalNarrative).length > 0) {
+                    dto.clinicalNarrative = clinicalNarrative;
+                }
+
+                await sessionsApi.updateSession(session!.id, dto);
+                setIsEditing(false);
+                reload();
+
+                // Show alert after state update
+                setTimeout(() => {
+                    alert(
+                        '⏰ Tiempo de sesión finalizado\n\n' +
+                        'La sesión se ha finalizado automáticamente porque se cumplió el tiempo programado.\n' +
+                        'La narrativa y duración han sido guardadas.'
+                    );
+                }, 300);
+            } catch {
+                setActionError('No se pudo finalizar la sesión automáticamente.');
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session?.id, session?.endedAt, session?.appointment?.scheduledEnd]);
+
+    // Derived permissions
     const isLocked = session?.isLocked ?? false;
     const legalStatus = session?.legalStatus ?? SessionLegalStatus.DRAFT;
-
-    // Can edit based on BACKEND state, not just role
     const isEditableLegalStatus = [SessionLegalStatus.DRAFT, SessionLegalStatus.PENDING_REVIEW].includes(legalStatus);
     const backendAllowsEdit = isEditableLegalStatus && !isLocked;
-
-    // UI permission (role-based) AND backend permission
     const canEdit = user ? canEditSessionNarrative(user.globalRole) && backendAllowsEdit : false;
     const canSign = user ? canShowSignSessionButton(user.globalRole) && legalStatus === SessionLegalStatus.PENDING_REVIEW && !isLocked : false;
     const canViewNarrative = user ? canViewSessionNarrative(user.globalRole) : false;
+    const isActive = !session?.endedAt && legalStatus === SessionLegalStatus.DRAFT;
 
-    // Start editing
+    // Start editing — populate all SOAP fields from current narrative
     function handleEdit() {
         if (!session || !canEdit) return;
-        setNarrative(session.narrative ?? '');
+        const n = session.clinicalNarrative;
+        setSubjective(n?.subjectiveReport ?? '');
+        setObjective(n?.objectiveObservation ?? '');
+        setAssessment(n?.assessment ?? '');
+        setPlan(n?.plan ?? '');
+        setAdditionalNotes(n?.additionalNotes ?? '');
         setIsEditing(true);
         setActionError('');
     }
 
-    // Save narrative - always call API, let backend validate
+    // Save narrative — send full SOAP structure
     async function handleSave() {
         if (!id) return;
 
@@ -60,20 +145,23 @@ export default function SessionDetail() {
         setActionError('');
 
         try {
-            const dto: UpdateSessionDto = {
-                clinicalNarrative: { additionalNotes: narrative }
-            };
+            const clinicalNarrative: ClinicalNarrative = {};
+            if (subjective.trim()) clinicalNarrative.subjectiveReport = subjective.trim();
+            if (objective.trim()) clinicalNarrative.objectiveObservation = objective.trim();
+            if (assessment.trim()) clinicalNarrative.assessment = assessment.trim();
+            if (plan.trim()) clinicalNarrative.plan = plan.trim();
+            if (additionalNotes.trim()) clinicalNarrative.additionalNotes = additionalNotes.trim();
+
+            const dto: UpdateSessionDto = { clinicalNarrative };
             await sessionsApi.updateSession(id, dto);
             setIsEditing(false);
             reload();
         } catch (err) {
             if (err instanceof ApiClientError) {
                 if (err.isConflict) {
-                    // 409 - Legal state conflict
                     setActionError('No se puede editar: la sesión ya cambió de estado. Recargando...');
                     setTimeout(() => reload(), 2000);
                 } else if (err.isLocked) {
-                    // 423 - Legal hold
                     setActionError('Esta sesión está bloqueada por retención legal.');
                 } else {
                     setActionError(err.message);
@@ -86,11 +174,40 @@ export default function SessionDetail() {
         }
     }
 
-    // Sign session - ONLY via /workflow/session/:id/sign
+    // End session — set endedAt so backend calculates durationMinutes
+    async function handleEndSession() {
+        if (!id) return;
+
+        const confirmed = window.confirm(
+            '¿Deseas finalizar esta sesión?\n\n' +
+            'Se registrará la hora actual como fin de sesión y se calculará la duración.'
+        );
+        if (!confirmed) return;
+
+        setIsEnding(true);
+        setActionError('');
+
+        try {
+            const dto: UpdateSessionDto = {
+                endedAt: new Date().toISOString(),
+            };
+            await sessionsApi.updateSession(id, dto);
+            reload();
+        } catch (err) {
+            if (err instanceof ApiClientError) {
+                setActionError(err.message);
+            } else {
+                setActionError('Error al finalizar sesión');
+            }
+        } finally {
+            setIsEnding(false);
+        }
+    }
+
+    // Sign session
     async function handleSign() {
         if (!id || !canSign) return;
 
-        // IRREVERSIBLE confirmation
         const confirmed = window.confirm(
             '⚠️ ATENCIÓN: Esta acción es IRREVERSIBLE.\n\n' +
             'Al firmar digitalmente esta sesión:\n' +
@@ -112,13 +229,10 @@ export default function SessionDetail() {
         } catch (err) {
             if (err instanceof ApiClientError) {
                 if (err.isConflict) {
-                    // 409 - Already signed or wrong state
                     setActionError('No se puede firmar: ' + err.message);
                 } else if (err.isLocked) {
-                    // 423 - Legal hold
                     setActionError('Esta sesión está bloqueada por retención legal.');
                 } else if (err.isForbidden) {
-                    // 403 - Not owner/not allowed
                     setActionError('No tienes permiso para firmar esta sesión.');
                 } else {
                     setActionError(err.message);
@@ -131,9 +245,9 @@ export default function SessionDetail() {
         }
     }
 
-    // =============================================================================
-    // LOADING STATE
-    // =============================================================================
+    // =========================================================================
+    // LOADING / ERROR / NO DATA STATES
+    // =========================================================================
     if (isLoading) {
         return (
             <div className="page">
@@ -147,9 +261,6 @@ export default function SessionDetail() {
         );
     }
 
-    // =============================================================================
-    // ERROR STATE
-    // =============================================================================
     if (error) {
         return (
             <div className="page">
@@ -168,9 +279,6 @@ export default function SessionDetail() {
         );
     }
 
-    // =============================================================================
-    // NO DATA
-    // =============================================================================
     if (!session) {
         return (
             <div className="page">
@@ -186,10 +294,13 @@ export default function SessionDetail() {
         );
     }
 
-    // =============================================================================
+    // =========================================================================
     // RENDER
-    // =============================================================================
+    // =========================================================================
     const statusInfo = getLegalStatusInfo(legalStatus);
+    const displayDuration = session.endedAt
+        ? (session.durationMinutes ?? 0)
+        : liveDuration;
 
     return (
         <div className="page animate-fade-in">
@@ -209,6 +320,7 @@ export default function SessionDetail() {
                     </div>
                     <div className={styles.statusBadges}>
                         <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                        {isActive && <Badge variant="pending">🟢 En curso</Badge>}
                         {isLocked && <Badge variant="voided">🔒 Bloqueada</Badge>}
                     </div>
                 </header>
@@ -251,9 +363,25 @@ export default function SessionDetail() {
                             </div>
                         )}
                         <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>Duración</span>
-                            <span className={styles.infoValue}>{session.durationMinutes ?? 0} min</span>
+                            <span className={styles.infoLabel}>Inicio</span>
+                            <span className={styles.infoValue}>
+                                {new Date(session.startedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                         </div>
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Duración</span>
+                            <span className={styles.infoValue}>
+                                {displayDuration} min {isActive && '⏱️'}
+                            </span>
+                        </div>
+                        {session.endedAt && (
+                            <div className={styles.infoItem}>
+                                <span className={styles.infoLabel}>Fin</span>
+                                <span className={styles.infoValue}>
+                                    {new Date(session.endedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                        )}
                         {session.signedAt && (
                             <div className={styles.infoItem}>
                                 <span className={styles.infoLabel}>Firmada</span>
@@ -271,10 +399,10 @@ export default function SessionDetail() {
                     </div>
                 </Card>
 
-                {/* Narrative */}
+                {/* Clinical Narrative — SOAP format */}
                 <Card className={styles.narrativeCard}>
                     <div className={styles.narrativeHeader}>
-                        <h3>Narrativa Clínica</h3>
+                        <h3>Narrativa Clínica (SOAP)</h3>
                         {!backendAllowsEdit && (
                             <span className={styles.readOnlyLabel}>Solo lectura</span>
                         )}
@@ -284,17 +412,64 @@ export default function SessionDetail() {
                         <p className={styles.noAccess}>No tienes acceso a ver la narrativa clínica.</p>
                     ) : isEditing ? (
                         <div className={styles.editForm}>
-                            <textarea
-                                value={narrative}
-                                onChange={(e) => setNarrative(e.target.value)}
-                                className={styles.narrativeInput}
-                                rows={12}
-                                disabled={isSaving}
-                                placeholder="Escribe la narrativa de la sesión..."
-                            />
+                            <div className={styles.soapField}>
+                                <label className={styles.soapLabel}>S — Subjetivo (lo que reporta el paciente)</label>
+                                <textarea
+                                    value={subjective}
+                                    onChange={(e) => setSubjective(e.target.value)}
+                                    className={styles.narrativeInput}
+                                    rows={4}
+                                    disabled={isSaving}
+                                    placeholder="¿Qué reporta el paciente? Estado emocional, quejas, avances percibidos..."
+                                />
+                            </div>
+                            <div className={styles.soapField}>
+                                <label className={styles.soapLabel}>O — Observaciones del terapeuta</label>
+                                <textarea
+                                    value={objective}
+                                    onChange={(e) => setObjective(e.target.value)}
+                                    className={styles.narrativeInput}
+                                    rows={4}
+                                    disabled={isSaving}
+                                    placeholder="Observaciones clínicas: conducta, afecto, lenguaje corporal..."
+                                />
+                            </div>
+                            <div className={styles.soapField}>
+                                <label className={styles.soapLabel}>A — Evaluación clínica</label>
+                                <textarea
+                                    value={assessment}
+                                    onChange={(e) => setAssessment(e.target.value)}
+                                    className={styles.narrativeInput}
+                                    rows={4}
+                                    disabled={isSaving}
+                                    placeholder="Análisis, diagnóstico diferencial, progreso respecto a objetivos..."
+                                />
+                            </div>
+                            <div className={styles.soapField}>
+                                <label className={styles.soapLabel}>P — Plan de tratamiento</label>
+                                <textarea
+                                    value={plan}
+                                    onChange={(e) => setPlan(e.target.value)}
+                                    className={styles.narrativeInput}
+                                    rows={4}
+                                    disabled={isSaving}
+                                    placeholder="Próximos pasos, técnicas a aplicar, tareas para el paciente..."
+                                />
+                            </div>
+                            <div className={styles.soapField}>
+                                <label className={styles.soapLabel}>Notas adicionales</label>
+                                <textarea
+                                    value={additionalNotes}
+                                    onChange={(e) => setAdditionalNotes(e.target.value)}
+                                    className={styles.narrativeInput}
+                                    rows={3}
+                                    disabled={isSaving}
+                                    placeholder="Información complementaria, coordinación interdisciplinaria..."
+                                />
+                            </div>
                             <div className={styles.editActions}>
                                 <Button onClick={handleSave} isLoading={isSaving}>
-                                    Guardar
+                                    Guardar Narrativa
                                 </Button>
                                 <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>
                                     Cancelar
@@ -304,15 +479,47 @@ export default function SessionDetail() {
                     ) : (
                         <>
                             <div className={styles.narrativeContent}>
-                                {session.narrative ? (
-                                    <p>{session.narrative}</p>
+                                {session.clinicalNarrative && hasAnyContent(session.clinicalNarrative) ? (
+                                    <div className={styles.soapDisplay}>
+                                        {session.clinicalNarrative.subjectiveReport && (
+                                            <div className={styles.soapSection}>
+                                                <span className={styles.soapTag}>S — Subjetivo</span>
+                                                <p>{session.clinicalNarrative.subjectiveReport}</p>
+                                            </div>
+                                        )}
+                                        {session.clinicalNarrative.objectiveObservation && (
+                                            <div className={styles.soapSection}>
+                                                <span className={styles.soapTag}>O — Objetivo</span>
+                                                <p>{session.clinicalNarrative.objectiveObservation}</p>
+                                            </div>
+                                        )}
+                                        {session.clinicalNarrative.assessment && (
+                                            <div className={styles.soapSection}>
+                                                <span className={styles.soapTag}>A — Evaluación</span>
+                                                <p>{session.clinicalNarrative.assessment}</p>
+                                            </div>
+                                        )}
+                                        {session.clinicalNarrative.plan && (
+                                            <div className={styles.soapSection}>
+                                                <span className={styles.soapTag}>P — Plan</span>
+                                                <p>{session.clinicalNarrative.plan}</p>
+                                            </div>
+                                        )}
+                                        {session.clinicalNarrative.additionalNotes && (
+                                            <div className={styles.soapSection}>
+                                                <span className={styles.soapTag}>Notas</span>
+                                                <p>{session.clinicalNarrative.additionalNotes}</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 ) : (
                                     <p className={styles.emptyNarrative}>No hay narrativa registrada.</p>
                                 )}
                             </div>
                             {canEdit && !isLocked && (
                                 <Button onClick={handleEdit} variant="secondary" size="sm">
-                                    Editar Narrativa
+                                    {session.clinicalNarrative && hasAnyContent(session.clinicalNarrative)
+                                        ? 'Editar Narrativa' : 'Escribir Narrativa'}
                                 </Button>
                             )}
                         </>
@@ -323,7 +530,23 @@ export default function SessionDetail() {
                 <Card className={styles.actionsCard}>
                     <h3>Acciones</h3>
 
-                    {/* Sign Button - Only for PENDING_REVIEW and not locked */}
+                    {/* Active session — can end it */}
+                    {isActive && canEdit && (
+                        <div className={styles.actionRow}>
+                            <Button
+                                onClick={handleEndSession}
+                                isLoading={isEnding}
+                                variant="secondary"
+                            >
+                                ⏹️ Finalizar Sesión
+                            </Button>
+                            <p className={styles.actionHint}>
+                                Registra la hora de finalización y calcula la duración.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Sign Button — PENDING_REVIEW and not locked */}
                     {canSign && (
                         <div className={styles.signSection}>
                             <p className={styles.signWarning}>
@@ -339,8 +562,7 @@ export default function SessionDetail() {
                         </div>
                     )}
 
-                    {/* No addendum - endpoint doesn't exist */}
-                    {/* Show info message for signed sessions */}
+                    {/* Info messages */}
                     {[SessionLegalStatus.SIGNED, SessionLegalStatus.AMENDED].includes(legalStatus) && (
                         <p className={styles.signedNote}>
                             Esta sesión está firmada y no puede modificarse.
@@ -350,6 +572,13 @@ export default function SessionDetail() {
                     {isLocked && (
                         <p className={styles.lockedNote}>
                             🔒 Esta sesión está bloqueada por retención legal.
+                        </p>
+                    )}
+
+                    {/* DRAFT with ended session — hint to edit and sign */}
+                    {legalStatus === SessionLegalStatus.DRAFT && session.endedAt && !isLocked && (
+                        <p className={styles.actionHint}>
+                            La sesión ha finalizado. Edita la narrativa y luego podrás enviarla para revisión y firma.
                         </p>
                     )}
                 </Card>
@@ -377,4 +606,8 @@ function getLegalStatusInfo(status: SessionLegalStatus): { variant: 'draft' | 'p
         [SessionLegalStatus.VOIDED]: { variant: 'voided', label: 'Anulada' },
     };
     return map[status];
+}
+
+function hasAnyContent(n: ClinicalNarrative): boolean {
+    return !!(n.subjectiveReport || n.objectiveObservation || n.assessment || n.plan || n.additionalNotes);
 }

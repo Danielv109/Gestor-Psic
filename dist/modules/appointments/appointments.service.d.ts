@@ -11,9 +11,6 @@ export declare class AppointmentsService {
     create(dto: CreateAppointmentDto, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -24,13 +21,13 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findById(id: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -41,13 +38,13 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findMyUpcoming(actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -58,13 +55,13 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     findByDateRange(startDate: string, endDate: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -75,13 +72,13 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     update(id: string, dto: UpdateAppointmentDto, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -92,13 +89,13 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     cancel(id: string, dto: CancelAppointmentDto, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -109,13 +106,13 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     confirm(id: string, actor: AuthenticatedUser): Promise<{
         id: string;
         patientId: string;
-        deletedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
         therapistId: string;
         scheduledStart: Date;
         scheduledEnd: Date;
@@ -126,6 +123,9 @@ export declare class AppointmentsService {
         cancelReason: string | null;
         confirmedAt: Date | null;
         reminderSentAt: Date | null;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     softDelete(id: string, actor: AuthenticatedUser): Promise<void>;
 }

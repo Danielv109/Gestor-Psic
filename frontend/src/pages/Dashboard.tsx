@@ -22,7 +22,7 @@ export default function Dashboard() {
                 const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
                 const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
                 const data = await apiClient<Appointment[]>(
-                    `/appointments?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
+                    `/appointments/range?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
                 );
                 // Sort by scheduled time
                 data.sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());

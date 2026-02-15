@@ -139,6 +139,7 @@ export interface ClinicalSession {
     // Related data (populated by backend includes)
     patient?: Patient;
     therapist?: User;
+    appointment?: { id: string; scheduledStart: string; scheduledEnd: string };
     // Derived/computed fields
     sessionDate?: string;       // May be derived from startedAt
     sessionType?: string;       // May come from appointment
