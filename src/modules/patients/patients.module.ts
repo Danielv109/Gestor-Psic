@@ -6,9 +6,10 @@ import { PatientsRepository } from './patients.repository';
 import { PatientAccessPolicy } from './policies/patient-access.policy';
 import { CollaborationsModule } from '../collaborations/collaborations.module';
 import { AuditModule } from '../audit/audit.module';
+import { CryptoModule } from '../../crypto/crypto.module';
 
 @Module({
-    imports: [CollaborationsModule, AuditModule],
+    imports: [CollaborationsModule, AuditModule, CryptoModule],
     controllers: [PatientsController],
     providers: [PatientsService, PatientsRepository, PatientAccessPolicy],
     exports: [PatientsService, PatientsRepository],

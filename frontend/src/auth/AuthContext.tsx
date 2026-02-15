@@ -75,8 +75,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         async function checkSession() {
             try {
-                // Attempt refresh using httpOnly cookie
-                // This is the ONLY way to restore session on page load
                 const response = await post<RefreshResponse>('/auth/refresh', undefined, {
                     skipAuth: true,
                 });
@@ -84,19 +82,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 if (isMounted && response.accessToken) {
                     setAccessToken(response.accessToken);
 
-                    // If backend returns user, use it
-                    // Otherwise we need a /auth/me endpoint (check if exists)
                     if (response.user) {
                         setState({ status: 'authenticated', user: response.user });
                     } else {
-                        // Backend doesn't return user on refresh
-                        // Mark as authenticated but user is null until next login
-                        // NOTE: This is a limitation - backend should return user on refresh
                         setState({ status: 'unauthenticated', user: null });
                     }
                 }
             } catch {
-                // Refresh failed - user is not authenticated
                 if (isMounted) {
                     setState({ status: 'unauthenticated', user: null });
                 }
@@ -109,6 +101,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isMounted = false;
         };
     }, []);
+
+    // =============================================================================
+    // SILENT AUTO-REFRESH
+    // Keeps the session alive without user interaction:
+    // - Every 50 min (access token lasts 1h)
+    // - When user returns to the tab after being away
+    // =============================================================================
+    useEffect(() => {
+        if (state.status !== 'authenticated') return;
+
+        let lastRefreshAt = Date.now();
+
+        async function silentRefresh() {
+            try {
+                const response = await post<RefreshResponse>('/auth/refresh', undefined, {
+                    skipAuth: true,
+                });
+                if (response.accessToken) {
+                    setAccessToken(response.accessToken);
+                    if (response.user) {
+                        setState(prev => ({ ...prev, user: response.user! }));
+                    }
+                    lastRefreshAt = Date.now();
+                }
+            } catch {
+                // Silent fail — do NOT log out here.
+                // The API client's 401 handler will redirect to login
+                // if the token is truly expired on the next real request.
+                console.debug('[Auth] Silent refresh failed, will retry later');
+            }
+        }
+
+        // Refresh every 50 minutes (access token = 1h)
+        const interval = setInterval(silentRefresh, 50 * 60 * 1000);
+
+        // Refresh when user returns to the tab (with 5s cooldown)
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'visible') {
+                const elapsed = Date.now() - lastRefreshAt;
+                // Only refresh if it's been at least 5 minutes since last refresh
+                if (elapsed > 5 * 60 * 1000) {
+                    silentRefresh();
+                }
+            }
+        }
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [state.status]);
 
     // =============================================================================
     // LOGIN

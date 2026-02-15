@@ -12,11 +12,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PatientsService = void 0;
 const common_1 = require("@nestjs/common");
 const patients_repository_1 = require("./patients.repository");
+const prisma_service_1 = require("../../prisma/prisma.service");
+const crypto_service_1 = require("../../crypto/crypto.service");
 const audit_service_1 = require("../audit/audit.service");
 const client_1 = require("@prisma/client");
 let PatientsService = class PatientsService {
-    constructor(patientsRepo, auditService) {
+    constructor(patientsRepo, prisma, cryptoService, auditService) {
         this.patientsRepo = patientsRepo;
+        this.prisma = prisma;
+        this.cryptoService = cryptoService;
         this.auditService = auditService;
     }
     async create(dto, actor) {
@@ -48,6 +52,11 @@ let PatientsService = class PatientsService {
             details: { externalId: patient.externalId },
         });
         return patient;
+    }
+    async quickSearch(query) {
+        if (!query || query.trim().length < 2)
+            return [];
+        return this.patientsRepo.quickSearch(query.trim(), 5);
     }
     async findById(id, actor) {
         const patient = await this.patientsRepo.findById(id);
@@ -174,6 +183,93 @@ let PatientsService = class PatientsService {
         });
         return updated;
     }
+    async getBriefing(patientId, actor) {
+        const patient = await this.patientsRepo.findById(patientId);
+        if (!patient) {
+            throw new common_1.NotFoundException(`Paciente ${patientId} no encontrado`);
+        }
+        const lastSession = await this.prisma.clinicalSession.findFirst({
+            where: {
+                patientId,
+                deletedAt: null,
+            },
+            orderBy: { startedAt: 'desc' },
+        });
+        let lastSessionPlan = null;
+        let lastSessionDate = null;
+        if (lastSession) {
+            lastSessionDate = lastSession.startedAt.toISOString();
+            try {
+                if (lastSession.clinicalNarrativeEncrypted && lastSession.narrativeIV && lastSession.narrativeKeyId) {
+                    const payload = {
+                        encrypted: Buffer.from(lastSession.clinicalNarrativeEncrypted),
+                        iv: Buffer.from(lastSession.narrativeIV),
+                        keyId: lastSession.narrativeKeyId,
+                    };
+                    const narrative = await this.cryptoService.decryptClinicalNarrative(payload, lastSession.id, actor.id);
+                    lastSessionPlan = narrative.plan || null;
+                }
+            }
+            catch {
+                lastSessionPlan = '[No se pudo descifrar la narrativa]';
+            }
+        }
+        let lastShadowNote = null;
+        let lastShadowNoteDate = null;
+        const shadowNote = await this.prisma.shadowNote.findFirst({
+            where: {
+                therapistId: actor.id,
+                deletedAt: null,
+                session: {
+                    patientId,
+                    deletedAt: null,
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (shadowNote) {
+            lastShadowNoteDate = shadowNote.createdAt.toISOString();
+            try {
+                lastShadowNote = await this.cryptoService.decryptShadowNote(shadowNote.contentEncrypted, shadowNote.contentIV, actor.id, shadowNote.id);
+            }
+            catch {
+                lastShadowNote = '[No se pudo descifrar la nota sombra]';
+            }
+        }
+        const pendingTopics = [];
+        if (lastSessionPlan) {
+            const lines = lastSessionPlan.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•')) {
+                    pendingTopics.push(trimmed.replace(/^[-*•]\s*/, ''));
+                }
+            }
+            if (pendingTopics.length === 0 && lastSessionPlan.trim().length > 0) {
+                pendingTopics.push(lastSessionPlan.trim());
+            }
+        }
+        await this.auditService.log({
+            actorId: actor.id,
+            actorRole: actor.globalRole,
+            actorIp: actor.ip,
+            action: client_1.AuditAction.READ,
+            resource: client_1.AuditResource.PATIENT,
+            resourceId: patientId,
+            patientId,
+            success: true,
+            details: { type: 'briefing' },
+        });
+        return {
+            patientId,
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            lastSessionPlan,
+            lastSessionDate,
+            lastShadowNote,
+            lastShadowNoteDate,
+            pendingTopics,
+        };
+    }
     generateExternalId() {
         const date = new Date();
         const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
@@ -185,6 +281,8 @@ exports.PatientsService = PatientsService;
 exports.PatientsService = PatientsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [patients_repository_1.PatientsRepository,
+        prisma_service_1.PrismaService,
+        crypto_service_1.CryptoService,
         audit_service_1.AuditService])
 ], PatientsService);
 //# sourceMappingURL=patients.service.js.map

@@ -5,6 +5,8 @@ import {
     ConflictException,
 } from '@nestjs/common';
 import { PatientsRepository } from './patients.repository';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoService } from '../../crypto/crypto.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto, UpdatePatientDto } from './dto';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
@@ -15,6 +17,8 @@ import { v4 as uuidv4 } from 'uuid';
 export class PatientsService {
     constructor(
         private readonly patientsRepo: PatientsRepository,
+        private readonly prisma: PrismaService,
+        private readonly cryptoService: CryptoService,
         private readonly auditService: AuditService,
     ) { }
 
@@ -56,6 +60,14 @@ export class PatientsService {
         });
 
         return patient;
+    }
+
+    /**
+     * Quick search patients by name or externalId (max 5 results)
+     */
+    async quickSearch(query: string) {
+        if (!query || query.trim().length < 2) return [];
+        return this.patientsRepo.quickSearch(query.trim(), 5);
     }
 
     async findById(id: string, actor: AuthenticatedUser) {
@@ -214,6 +226,120 @@ export class PatientsService {
         });
 
         return updated;
+    }
+
+    /**
+     * 5-minute briefing: last session plan + last shadow note + pending topics
+     */
+    async getBriefing(patientId: string, actor: AuthenticatedUser) {
+        // Verify patient exists
+        const patient = await this.patientsRepo.findById(patientId);
+        if (!patient) {
+            throw new NotFoundException(`Paciente ${patientId} no encontrado`);
+        }
+
+        // 1) Last completed session for this patient
+        const lastSession = await this.prisma.clinicalSession.findFirst({
+            where: {
+                patientId,
+                deletedAt: null,
+            },
+            orderBy: { startedAt: 'desc' },
+        });
+
+        let lastSessionPlan: string | null = null;
+        let lastSessionDate: string | null = null;
+
+        if (lastSession) {
+            lastSessionDate = lastSession.startedAt.toISOString();
+            // Decrypt narrative to get the plan
+            try {
+                if (lastSession.clinicalNarrativeEncrypted && lastSession.narrativeIV && lastSession.narrativeKeyId) {
+                    const payload = {
+                        encrypted: Buffer.from(lastSession.clinicalNarrativeEncrypted),
+                        iv: Buffer.from(lastSession.narrativeIV),
+                        keyId: lastSession.narrativeKeyId,
+                    };
+                    const narrative = await this.cryptoService.decryptClinicalNarrative(
+                        payload,
+                        lastSession.id,
+                        actor.id,
+                    );
+                    lastSessionPlan = narrative.plan || null;
+                }
+            } catch {
+                lastSessionPlan = '[No se pudo descifrar la narrativa]';
+            }
+        }
+
+        // 2) Last shadow note for any session of this patient, by this therapist
+        let lastShadowNote: string | null = null;
+        let lastShadowNoteDate: string | null = null;
+
+        const shadowNote = await this.prisma.shadowNote.findFirst({
+            where: {
+                therapistId: actor.id,
+                deletedAt: null,
+                session: {
+                    patientId,
+                    deletedAt: null,
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (shadowNote) {
+            lastShadowNoteDate = shadowNote.createdAt.toISOString();
+            try {
+                lastShadowNote = await this.cryptoService.decryptShadowNote(
+                    shadowNote.contentEncrypted,
+                    shadowNote.contentIV,
+                    actor.id,
+                    shadowNote.id,
+                );
+            } catch {
+                lastShadowNote = '[No se pudo descifrar la nota sombra]';
+            }
+        }
+
+        // 3) Pending topics — extract from plan text (lines starting with - or *)
+        const pendingTopics: string[] = [];
+        if (lastSessionPlan) {
+            const lines = lastSessionPlan.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•')) {
+                    pendingTopics.push(trimmed.replace(/^[-*•]\s*/, ''));
+                }
+            }
+            // If no bullet points, use the whole plan as a single topic
+            if (pendingTopics.length === 0 && lastSessionPlan.trim().length > 0) {
+                pendingTopics.push(lastSessionPlan.trim());
+            }
+        }
+
+        // Audit
+        await this.auditService.log({
+            actorId: actor.id,
+            actorRole: actor.globalRole,
+            actorIp: actor.ip,
+            action: AuditAction.READ,
+            resource: AuditResource.PATIENT,
+            resourceId: patientId,
+            patientId,
+            success: true,
+            details: { type: 'briefing' },
+        });
+
+        return {
+            patientId,
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            lastSessionPlan,
+            lastSessionDate,
+            lastShadowNote,
+            lastShadowNoteDate,
+            pendingTopics,
+        };
     }
 
     private generateExternalId(): string {

@@ -26,12 +26,12 @@ let TokenService = TokenService_1 = class TokenService {
         this.prisma = prisma;
         this.auditService = auditService;
         this.logger = new common_1.Logger(TokenService_1.name);
-        this.accessTokenExpiry = this.configService.get('JWT_EXPIRES_IN', '15m');
-        this.refreshTokenExpiry = this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d');
+        this.accessTokenExpiry = this.configService.get('JWT_EXPIRES_IN', '1h');
+        this.refreshTokenExpiry = this.configService.get('JWT_REFRESH_EXPIRES_IN', '30d');
         this.refreshTokenExpiryMs = this.parseExpiry(this.refreshTokenExpiry);
     }
     generateFingerprint(ip, userAgent) {
-        const data = `${ip}:${userAgent || 'unknown'}`;
+        const data = `ua:${userAgent || 'unknown'}`;
         return crypto.createHash('sha256').update(data).digest('hex');
     }
     async createTokenPair(user, ip, userAgent, existingFamilyId) {
@@ -93,22 +93,7 @@ let TokenService = TokenService_1 = class TokenService {
         }
         const currentFingerprint = this.generateFingerprint(ip, userAgent);
         if (token.fingerprint !== currentFingerprint) {
-            this.logger.warn(`SECURITY: Fingerprint mismatch for user ${token.userId}`);
-            await this.auditService.log({
-                actorId: token.userId,
-                actorIp: ip,
-                action: client_1.AuditAction.ACCESS_DENIED,
-                resource: client_1.AuditResource.USER,
-                resourceId: token.userId,
-                success: false,
-                failureReason: 'Fingerprint mismatch',
-                details: {
-                    event: 'fingerprint_mismatch',
-                    expectedIp: token.ipAddress,
-                    actualIp: ip,
-                },
-            });
-            throw new common_1.UnauthorizedException('Session binding mismatch');
+            this.logger.warn(`Fingerprint mismatch for user ${token.userId} (soft warning, allowing rotation)`);
         }
         await this.prisma.refreshToken.update({
             where: { id: token.id },

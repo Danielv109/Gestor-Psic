@@ -28,6 +28,9 @@ let PatientsController = class PatientsController {
     async create(dto, user) {
         return this.patientsService.create(dto, user);
     }
+    async quickSearch(query) {
+        return this.patientsService.quickSearch(query);
+    }
     async findMyPatients(user) {
         return this.patientsService.findByTherapist(user.id, user);
     }
@@ -46,6 +49,9 @@ let PatientsController = class PatientsController {
     async updateRisk(id, dto, user) {
         return this.patientsService.updateRisk(id, dto, user);
     }
+    async getBriefing(id, user) {
+        return this.patientsService.getBriefing(id, user);
+    }
 };
 exports.PatientsController = PatientsController;
 __decorate([
@@ -58,6 +64,14 @@ __decorate([
     __metadata("design:paramtypes", [dto_1.CreatePatientDto, Object]),
     __metadata("design:returntype", Promise)
 ], PatientsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Get)('search'),
+    (0, roles_decorator_1.Roles)(client_1.GlobalRole.TERAPEUTA, client_1.GlobalRole.SUPERVISOR, client_1.GlobalRole.ASISTENTE),
+    __param(0, (0, common_1.Query)('q')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PatientsController.prototype, "quickSearch", null);
 __decorate([
     (0, common_1.Get)(),
     (0, roles_decorator_1.Roles)(client_1.GlobalRole.TERAPEUTA, client_1.GlobalRole.SUPERVISOR, client_1.GlobalRole.ASISTENTE),
@@ -119,6 +133,16 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], PatientsController.prototype, "updateRisk", null);
+__decorate([
+    (0, common_1.Get)(':id/briefing'),
+    (0, roles_decorator_1.Roles)(client_1.GlobalRole.TERAPEUTA, client_1.GlobalRole.SUPERVISOR),
+    (0, policies_decorator_1.CheckPolicies)(patient_access_policy_1.PatientAccessPolicy),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], PatientsController.prototype, "getBriefing", null);
 exports.PatientsController = PatientsController = __decorate([
     (0, common_1.Controller)('patients'),
     __metadata("design:paramtypes", [patients_service_1.PatientsService])

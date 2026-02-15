@@ -1,11 +1,15 @@
 import { PatientsRepository } from './patients.repository';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoService } from '../../crypto/crypto.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePatientDto, UpdatePatientDto } from './dto';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 export declare class PatientsService {
     private readonly patientsRepo;
+    private readonly prisma;
+    private readonly cryptoService;
     private readonly auditService;
-    constructor(patientsRepo: PatientsRepository, auditService: AuditService);
+    constructor(patientsRepo: PatientsRepository, prisma: PrismaService, cryptoService: CryptoService, auditService: AuditService);
     create(dto: CreatePatientDto, actor: AuthenticatedUser): Promise<{
         id: string;
         firstName: string;
@@ -34,6 +38,34 @@ export declare class PatientsService {
         riskAssessedAt: Date | null;
         riskAssessedBy: string | null;
     }>;
+    quickSearch(query: string): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        isActive: boolean;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
+        externalId: string;
+        dateOfBirth: Date | null;
+        gender: string | null;
+        contactEmail: string | null;
+        contactPhone: string | null;
+        address: string | null;
+        custodianName: string | null;
+        custodianPhone: string | null;
+        custodianEmail: string | null;
+        custodianRelation: string | null;
+        emergencyContactName: string | null;
+        emergencyPhone: string | null;
+        emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
+    }[]>;
     findById(id: string, actor: AuthenticatedUser): Promise<{
         id: string;
         firstName: string;
@@ -225,6 +257,15 @@ export declare class PatientsService {
         riskNotes: string | null;
         riskAssessedAt: Date | null;
         riskAssessedBy: string | null;
+    }>;
+    getBriefing(patientId: string, actor: AuthenticatedUser): Promise<{
+        patientId: string;
+        patientName: string;
+        lastSessionPlan: string | null;
+        lastSessionDate: string | null;
+        lastShadowNote: string | null;
+        lastShadowNoteDate: string | null;
+        pendingTopics: string[];
     }>;
     private generateExternalId;
 }

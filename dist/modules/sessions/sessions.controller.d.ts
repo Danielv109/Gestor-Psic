@@ -13,6 +13,7 @@ export declare class SessionsController {
         versionNumber: number;
         createdAt: Date;
         changeReason: string | null;
+        narrativeText: string | null;
     }[]>;
     update(id: string, dto: UpdateSessionDto, user: AuthenticatedUser): Promise<any>;
     sign(id: string, dto: SignSessionDto, user: AuthenticatedUser): Promise<any>;

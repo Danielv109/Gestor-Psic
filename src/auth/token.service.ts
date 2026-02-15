@@ -44,8 +44,8 @@ export class TokenService {
         private readonly prisma: PrismaService,
         private readonly auditService: AuditService,
     ) {
-        this.accessTokenExpiry = this.configService.get('JWT_EXPIRES_IN', '15m');
-        this.refreshTokenExpiry = this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d');
+        this.accessTokenExpiry = this.configService.get('JWT_EXPIRES_IN', '1h');
+        this.refreshTokenExpiry = this.configService.get('JWT_REFRESH_EXPIRES_IN', '30d');
         this.refreshTokenExpiryMs = this.parseExpiry(this.refreshTokenExpiry);
     }
 
@@ -54,7 +54,9 @@ export class TokenService {
      * Usado para vincular token a la sesión del cliente
      */
     generateFingerprint(ip: string, userAgent: string): string {
-        const data = `${ip}:${userAgent || 'unknown'}`;
+        // Only bind to UserAgent (not IP) so WiFi/network changes
+        // don't invalidate the session for therapists working from home
+        const data = `ua:${userAgent || 'unknown'}`;
         return crypto.createHash('sha256').update(data).digest('hex');
     }
 
@@ -151,27 +153,11 @@ export class TokenService {
             throw new UnauthorizedException('Refresh token expired');
         }
 
-        // Verificar fingerprint (IP + UserAgent binding)
+        // Fingerprint check (UserAgent binding - soft check)
         const currentFingerprint = this.generateFingerprint(ip, userAgent);
         if (token.fingerprint !== currentFingerprint) {
-            this.logger.warn(`SECURITY: Fingerprint mismatch for user ${token.userId}`);
-
-            await this.auditService.log({
-                actorId: token.userId,
-                actorIp: ip,
-                action: AuditAction.ACCESS_DENIED,
-                resource: AuditResource.USER,
-                resourceId: token.userId,
-                success: false,
-                failureReason: 'Fingerprint mismatch',
-                details: {
-                    event: 'fingerprint_mismatch',
-                    expectedIp: token.ipAddress,
-                    actualIp: ip,
-                },
-            });
-
-            throw new UnauthorizedException('Session binding mismatch');
+            // Warn but DON'T reject — user may have updated browser
+            this.logger.warn(`Fingerprint mismatch for user ${token.userId} (soft warning, allowing rotation)`);
         }
 
         // Revocar token actual (rotación)

@@ -44,6 +44,24 @@ export class PatientsRepository {
         });
     }
 
+    /**
+     * Quick search by name or externalId (max 5 results)
+     */
+    async quickSearch(query: string, limit = 5): Promise<Patient[]> {
+        return this.prisma.patient.findMany({
+            where: {
+                deletedAt: null,
+                OR: [
+                    { firstName: { contains: query, mode: 'insensitive' } },
+                    { lastName: { contains: query, mode: 'insensitive' } },
+                    { externalId: { contains: query, mode: 'insensitive' } },
+                ],
+            },
+            orderBy: { lastName: 'asc' },
+            take: limit,
+        });
+    }
+
     async count(where?: Prisma.PatientWhereInput): Promise<number> {
         return this.prisma.patient.count({ where });
     }

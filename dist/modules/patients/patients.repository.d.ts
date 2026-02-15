@@ -12,6 +12,7 @@ export declare class PatientsRepository {
         where?: Prisma.PatientWhereInput;
         orderBy?: Prisma.PatientOrderByWithRelationInput;
     }): Promise<Patient[]>;
+    quickSearch(query: string, limit?: number): Promise<Patient[]>;
     count(where?: Prisma.PatientWhereInput): Promise<number>;
     create(data: Prisma.PatientCreateInput): Promise<Patient>;
     update(id: string, data: Prisma.PatientUpdateInput): Promise<Patient>;

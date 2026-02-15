@@ -80,6 +80,11 @@ export interface Patient {
     emergencyRelation?: string;
     // Status
     isActive: boolean;
+    // Risk alert
+    isHighRisk?: boolean;
+    riskLevel?: string;
+    riskNotes?: string;
+    riskAssessedAt?: string;
     createdAt: string;
     updatedAt: string;
     // Legacy aliases (some components may use these)
@@ -172,6 +177,7 @@ export interface Appointment {
     cancelledAt?: string;
     cancelReason?: string;
     confirmedAt?: string;
+    reminderSentAt?: string;
     createdAt: string;
     updatedAt: string;
     patient?: Patient;

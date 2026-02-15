@@ -43,6 +43,20 @@ let PatientsRepository = class PatientsRepository {
             orderBy,
         });
     }
+    async quickSearch(query, limit = 5) {
+        return this.prisma.patient.findMany({
+            where: {
+                deletedAt: null,
+                OR: [
+                    { firstName: { contains: query, mode: 'insensitive' } },
+                    { lastName: { contains: query, mode: 'insensitive' } },
+                    { externalId: { contains: query, mode: 'insensitive' } },
+                ],
+            },
+            orderBy: { lastName: 'asc' },
+            take: limit,
+        });
+    }
     async count(where) {
         return this.prisma.patient.count({ where });
     }

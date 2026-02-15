@@ -324,7 +324,7 @@ export class SessionsService {
     }
 
     /**
-     * Obtener historial de versiones
+     * Obtener historial de versiones con narrativa descifrada
      */
     async getVersions(id: string, actor: AuthenticatedUser) {
         const session = await this.sessionsRepo.findById(id);
@@ -347,12 +347,45 @@ export class SessionsService {
             details: { type: 'versions', count: versions.length },
         });
 
-        return versions.map((v) => ({
-            id: v.id,
-            versionNumber: v.versionNumber,
-            createdAt: v.createdAt,
-            changeReason: v.changeReason,
-        }));
+        // Decrypt each version's narrative for human-readable history
+        const decryptedVersions = await Promise.all(
+            versions.map(async (v) => {
+                let narrativeText: string | null = null;
+                try {
+                    if (v.narrativeSnapshotEncrypted && v.narrativeIV && v.narrativeKeyId) {
+                        const payload = {
+                            encrypted: Buffer.from(v.narrativeSnapshotEncrypted),
+                            iv: Buffer.from(v.narrativeIV),
+                            keyId: v.narrativeKeyId,
+                        };
+                        const parsed = await this.cryptoService.decryptClinicalNarrative(
+                            payload,
+                            v.sessionId,
+                            actor.id,
+                        );
+                        narrativeText = [
+                            parsed.subjectiveReport ? `Subjetivo: ${parsed.subjectiveReport}` : '',
+                            parsed.objectiveObservation ? `Observaciones: ${parsed.objectiveObservation}` : '',
+                            parsed.assessment ? `Evaluación: ${parsed.assessment}` : '',
+                            parsed.plan ? `Plan: ${parsed.plan}` : '',
+                            parsed.additionalNotes ? `Notas: ${parsed.additionalNotes}` : '',
+                        ].filter(Boolean).join('\n\n');
+                    }
+                } catch {
+                    narrativeText = '[No se pudo descifrar esta versión]';
+                }
+
+                return {
+                    id: v.id,
+                    versionNumber: v.versionNumber,
+                    createdAt: v.createdAt,
+                    changeReason: v.changeReason,
+                    narrativeText,
+                };
+            }),
+        );
+
+        return decryptedVersions;
     }
 
     /**

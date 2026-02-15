@@ -31,7 +31,6 @@ export declare class AuditService {
         endDate?: Date;
     }): Promise<{
         id: string;
-        actorId: string | null;
         actorRole: import(".prisma/client").$Enums.GlobalRole | null;
         actorIp: string;
         actorUserAgent: string | null;
@@ -43,6 +42,7 @@ export declare class AuditService {
         success: boolean;
         failureReason: string | null;
         timestamp: Date;
+        actorId: string | null;
     }[]>;
     findByActor(actorId: string, options?: {
         skip?: number;
@@ -51,7 +51,6 @@ export declare class AuditService {
         endDate?: Date;
     }): Promise<{
         id: string;
-        actorId: string | null;
         actorRole: import(".prisma/client").$Enums.GlobalRole | null;
         actorIp: string;
         actorUserAgent: string | null;
@@ -63,6 +62,7 @@ export declare class AuditService {
         success: boolean;
         failureReason: string | null;
         timestamp: Date;
+        actorId: string | null;
     }[]>;
     private sanitizeDetails;
     logSensitiveAccess(input: {
@@ -95,7 +95,6 @@ export declare class AuditService {
         endDate?: Date;
     }): Promise<{
         id: string;
-        actorId: string | null;
         actorRole: import(".prisma/client").$Enums.GlobalRole | null;
         actorIp: string;
         actorUserAgent: string | null;
@@ -107,6 +106,7 @@ export declare class AuditService {
         success: boolean;
         failureReason: string | null;
         timestamp: Date;
+        actorId: string | null;
     }[]>;
     getAccessStats(resource: AuditResource, resourceId: string, options?: {
         startDate?: Date;

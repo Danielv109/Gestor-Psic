@@ -32,6 +32,34 @@ export declare class PatientsController {
         riskAssessedAt: Date | null;
         riskAssessedBy: string | null;
     }>;
+    quickSearch(query: string): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        isActive: boolean;
+        deletedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
+        externalId: string;
+        dateOfBirth: Date | null;
+        gender: string | null;
+        contactEmail: string | null;
+        contactPhone: string | null;
+        address: string | null;
+        custodianName: string | null;
+        custodianPhone: string | null;
+        custodianEmail: string | null;
+        custodianRelation: string | null;
+        emergencyContactName: string | null;
+        emergencyPhone: string | null;
+        emergencyRelation: string | null;
+        isHighRisk: boolean;
+        riskLevel: string | null;
+        riskNotes: string | null;
+        riskAssessedAt: Date | null;
+        riskAssessedBy: string | null;
+    }[]>;
     findMyPatients(user: AuthenticatedUser): Promise<{
         id: string;
         firstName: string;
@@ -196,5 +224,14 @@ export declare class PatientsController {
         riskNotes: string | null;
         riskAssessedAt: Date | null;
         riskAssessedBy: string | null;
+    }>;
+    getBriefing(id: string, user: AuthenticatedUser): Promise<{
+        patientId: string;
+        patientName: string;
+        lastSessionPlan: string | null;
+        lastSessionDate: string | null;
+        lastShadowNote: string | null;
+        lastShadowNoteDate: string | null;
+        pendingTopics: string[];
     }>;
 }

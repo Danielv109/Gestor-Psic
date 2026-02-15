@@ -5,6 +5,7 @@
 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
+import SearchBar from './SearchBar';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -53,6 +54,8 @@ export default function Layout({ children }: LayoutProps) {
                             Sesiones
                         </Link>
                     </div>
+
+                    <SearchBar />
 
                     <div className={styles.user}>
                         <span className={styles.userName}>

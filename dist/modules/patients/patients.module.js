@@ -14,12 +14,13 @@ const patients_repository_1 = require("./patients.repository");
 const patient_access_policy_1 = require("./policies/patient-access.policy");
 const collaborations_module_1 = require("../collaborations/collaborations.module");
 const audit_module_1 = require("../audit/audit.module");
+const crypto_module_1 = require("../../crypto/crypto.module");
 let PatientsModule = class PatientsModule {
 };
 exports.PatientsModule = PatientsModule;
 exports.PatientsModule = PatientsModule = __decorate([
     (0, common_1.Module)({
-        imports: [collaborations_module_1.CollaborationsModule, audit_module_1.AuditModule],
+        imports: [collaborations_module_1.CollaborationsModule, audit_module_1.AuditModule, crypto_module_1.CryptoModule],
         controllers: [patients_controller_1.PatientsController],
         providers: [patients_service_1.PatientsService, patients_repository_1.PatientsRepository, patient_access_policy_1.PatientAccessPolicy],
         exports: [patients_service_1.PatientsService, patients_repository_1.PatientsRepository],

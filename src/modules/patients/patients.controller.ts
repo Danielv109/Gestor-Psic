@@ -1,4 +1,3 @@
-// src/modules/patients/patients.controller.ts
 import {
     Controller,
     Get,
@@ -8,6 +7,7 @@ import {
     Delete,
     Body,
     Param,
+    Query,
     ParseUUIDPipe,
     HttpCode,
     HttpStatus,
@@ -38,6 +38,17 @@ export class PatientsController {
         @CurrentUser() user: AuthenticatedUser,
     ) {
         return this.patientsService.create(dto, user);
+    }
+
+    /**
+     * GET /patients/search?q=término
+     * Quick search by name/externalId (max 5 results)
+     * MUST be BEFORE :id route to avoid collision
+     */
+    @Get('search')
+    @Roles(GlobalRole.TERAPEUTA, GlobalRole.SUPERVISOR, GlobalRole.ASISTENTE)
+    async quickSearch(@Query('q') query: string) {
+        return this.patientsService.quickSearch(query);
     }
 
     /**
@@ -127,5 +138,19 @@ export class PatientsController {
         @CurrentUser() user: AuthenticatedUser,
     ) {
         return this.patientsService.updateRisk(id, dto, user);
+    }
+
+    /**
+     * GET /patients/:id/briefing
+     * 5-minute pre-session briefing: last plan + shadow note + pending topics
+     */
+    @Get(':id/briefing')
+    @Roles(GlobalRole.TERAPEUTA, GlobalRole.SUPERVISOR)
+    @CheckPolicies(PatientAccessPolicy)
+    async getBriefing(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: AuthenticatedUser,
+    ) {
+        return this.patientsService.getBriefing(id, user);
     }
 }

@@ -21,6 +21,7 @@ export declare class SessionsService {
         versionNumber: number;
         createdAt: Date;
         changeReason: string | null;
+        narrativeText: string | null;
     }[]>;
     reEncryptSession(id: string, actor: AuthenticatedUser): Promise<{
         success: boolean;
